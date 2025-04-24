@@ -37,14 +37,14 @@ public class JwtService {
             signWith accepts a secretKey
          */
 
-        String jwt = Jwts.builder()
+        String JWT = Jwts.builder()
                 .subject(email) //username here is indeed the email
                 .issuedAt(new Date(System.currentTimeMillis()))
                 .expiration(new Date(System.currentTimeMillis() + jwtExpiresMinutes * 60 * 1000))
                 .signWith(getSignInKey())
                 .compact();
 
-        Cookie cookie = new Cookie("jwt", jwt);
+        Cookie cookie = new Cookie("JWT", JWT);
         cookie.setHttpOnly(true);
         cookie.setSecure(true);
         cookie.setPath("/");
@@ -59,7 +59,7 @@ public class JwtService {
         Cookie[] cookies = request.getCookies();
         if (cookies != null) {
             for (Cookie cookie : cookies) {
-                if ("jwt".equals(cookie.getName())) { // Replace "jwt" with your actual cookie name
+                if ("JWT".equals(cookie.getName())) { // Replace "jwt" with your actual cookie name
                     return cookie.getValue();
                 }
             }
