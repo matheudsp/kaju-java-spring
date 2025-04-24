@@ -38,19 +38,24 @@ public class AuthenticationService {
         this.roleRepository = roleRepository;
     }
     public String login(LoginRequest loginRequest, HttpServletResponse response) {
+        try {
+            Authentication authenticationRequest = UsernamePasswordAuthenticationToken.unauthenticated(loginRequest.getEmail(), loginRequest.getPassword());
+            Authentication authenticationResponse = this.authenticationManager.authenticate(authenticationRequest);
 
-        Authentication authenticationRequest = UsernamePasswordAuthenticationToken.unauthenticated(loginRequest.getEmail(), loginRequest.getPassword());
-        Authentication authenticationResponse = this.authenticationManager.authenticate(authenticationRequest);
-
-        SecurityContextHolder.getContext().setAuthentication(authenticationResponse);
-
-        jwtService.generateToken(loginRequest.getEmail(), response);
+            SecurityContextHolder.getContext().setAuthentication(authenticationResponse);
 
 
-        UserDetails userDetails = (UserDetails) authenticationResponse.getPrincipal();
+            System.out.println("Authentication successful for user: " + loginRequest.getEmail());
 
-//        System.out.println("email: " + email);
-        return userDetails.getUsername();
+            String token = jwtService.generateToken(loginRequest.getEmail(), response);
+            System.out.println("JWT token generated: " + token.substring(0, 10) + "...");
+
+            UserDetails userDetails = (UserDetails) authenticationResponse.getPrincipal();
+            return userDetails.getUsername();
+        } catch (Exception e) {
+            System.out.println("Authentication failed: " + e.getMessage());
+            throw e;
+        }
     }
     public void registerAccount(SignupRequest signupRequest){
 

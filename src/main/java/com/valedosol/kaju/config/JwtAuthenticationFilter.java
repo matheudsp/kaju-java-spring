@@ -5,6 +5,7 @@ import com.valedosol.kaju.service.JwtService;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
+import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
@@ -42,32 +43,60 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         String path = request.getRequestURI();
         String method = request.getMethod();
 
-        logger.debug("Request received: {} {}", method, path);
-        
+        System.out.println("\n--- New Request ---");
+        System.out.println("Request: " + method + " " + path);
+
         // Skip filter for auth endpoints
         if (path.startsWith("/auth/")) {
-            logger.debug("Skipping authentication for path: {}", path);
+            System.out.println("Skipping authentication for auth endpoint");
             filterChain.doFilter(request, response);
             return;
         }
 
+        // Print all cookies for debugging
+        Cookie[] cookies = request.getCookies();
+        if (cookies != null) {
+            System.out.println("Cookies found in request:");
+            for (Cookie cookie : cookies) {
+                System.out.println("Cookie name: " + cookie.getName() + ", value: " + (cookie.getValue() != null ? cookie.getValue().substring(0, Math.min(10, cookie.getValue().length())) + "..." : "null"));
+            }
+        } else {
+            System.out.println("No cookies found in request");
+        }
+
         try {
             String jwt = jwtService.getJwtFromCookie(request);
-            if (jwt != null && !jwt.isEmpty()) {
+
+            if (jwt == null || jwt.isEmpty()) {
+                System.out.println("No JWT token found in cookies");
+            } else {
+                System.out.println("JWT token found: " + jwt.substring(0, 10) + "...");
+
+                // Try to validate the token
+                System.out.println("Validating token...");
                 jwtService.validateToken(jwt);
+
                 String userEmail = jwtService.extractEmail();
+                System.out.println("Email extracted from token: " + userEmail);
 
                 UserDetails userDetails = customUserDetailsService.loadUserByUsername(userEmail);
+                System.out.println("User details loaded for: " + userDetails.getUsername());
 
-                UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
+                UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
+                        userDetails, null, userDetails.getAuthorities());
                 authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
 
                 SecurityContext context = SecurityContextHolder.createEmptyContext();
                 context.setAuthentication(authToken);
                 SecurityContextHolder.setContext(context);
+                System.out.println("Authentication set in SecurityContext");
             }
-        } catch (JwtException | UsernameNotFoundException e) {
-            logger.error("Token JWT Inválido: {}", e.getMessage());
+        } catch (JwtException e) {
+            System.out.println("JWT validation failed: " + e.getMessage());
+            e.printStackTrace();
+        } catch (Exception e) {
+            System.out.println("Authentication error: " + e.getMessage());
+            e.printStackTrace();
         }
 
         filterChain.doFilter(request, response);
