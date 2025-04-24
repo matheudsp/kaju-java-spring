@@ -44,7 +44,7 @@ public class JwtService {
                 .signWith(getSignInKey())
                 .compact();
 
-        Cookie cookie = new Cookie("JWT", jwt);
+        Cookie cookie = new Cookie("jwt", jwt);
         cookie.setHttpOnly(true);
         cookie.setSecure(true);
         cookie.setPath("/");
