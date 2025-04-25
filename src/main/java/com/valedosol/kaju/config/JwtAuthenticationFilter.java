@@ -21,7 +21,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 
-import org.springframework.security.core.userdetails.UsernameNotFoundException;
+
 
 import io.jsonwebtoken.JwtException;
 
@@ -43,12 +43,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         String path = request.getRequestURI();
         String method = request.getMethod();
 
-        System.out.println("\n--- New Request ---");
-        System.out.println("Request: " + method + " " + path);
+        // System.out.println("\n--- New Request ---");
+        // System.out.println("Request: " + method + " " + path);
 
         // Skip filter for auth endpoints
         if (path.startsWith("/auth/")) {
-            System.out.println("Skipping authentication for auth endpoint");
+            // System.out.println("Skipping authentication for auth endpoint");
             filterChain.doFilter(request, response);
             return;
         }
@@ -73,14 +73,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 System.out.println("JWT token found: " + jwt.substring(0, 10) + "...");
 
                 // Try to validate the token
-                System.out.println("Validating token...");
                 jwtService.validateToken(jwt);
 
                 String userEmail = jwtService.extractEmail();
-                System.out.println("Email extracted from token: " + userEmail);
+                
 
                 UserDetails userDetails = customUserDetailsService.loadUserByUsername(userEmail);
-                System.out.println("User details loaded for: " + userDetails.getUsername());
+                
 
                 UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
                         userDetails, null, userDetails.getAuthorities());
@@ -89,13 +88,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 SecurityContext context = SecurityContextHolder.createEmptyContext();
                 context.setAuthentication(authToken);
                 SecurityContextHolder.setContext(context);
-                System.out.println("Authentication set in SecurityContext");
+                
             }
         } catch (JwtException e) {
-            System.out.println("JWT validation failed: " + e.getMessage());
+            // System.out.println("JWT validation failed: " + e.getMessage());
             e.printStackTrace();
         } catch (Exception e) {
-            System.out.println("Authentication error: " + e.getMessage());
+            // System.out.println("Authentication error: " + e.getMessage());
             e.printStackTrace();
         }
 

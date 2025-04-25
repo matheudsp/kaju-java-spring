@@ -11,7 +11,7 @@ public class Target {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-
+    
     private String name;
     private String identifier;
     private String type; // "channel" ou "group" ou "newsletter"
