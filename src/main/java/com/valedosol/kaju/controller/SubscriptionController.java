@@ -23,7 +23,7 @@ public class SubscriptionController {
     private final AccountRepository accountRepository;
 
     public SubscriptionController(SubscriptionPlanRepository subscriptionPlanRepository,
-                                  AccountRepository accountRepository) {
+            AccountRepository accountRepository) {
         this.subscriptionPlanRepository = subscriptionPlanRepository;
         this.accountRepository = accountRepository;
     }
@@ -36,6 +36,32 @@ public class SubscriptionController {
 
     @PostMapping("/subscribe/{planId}")
     public ResponseEntity<?> subscribe(@PathVariable Long planId) {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        String email = auth.getName();
+
+        Optional<Account> accountOpt = accountRepository.findByEmail(email);
+        if (!accountOpt.isPresent()) {
+            return new ResponseEntity<>("User not found", HttpStatus.NOT_FOUND);
+        }
+
+        Optional<SubscriptionPlan> planOpt = subscriptionPlanRepository.findById(planId);
+        if (!planOpt.isPresent()) {
+            return new ResponseEntity<>("Plan not found", HttpStatus.NOT_FOUND);
+        }
+
+        // Em vez de atualizar diretamente a assinatura, retornamos informações para
+        // redirecionar o usuário para o checkout do Stripe
+        return new ResponseEntity<>(
+                Map.of(
+                        "redirectToPayment", true,
+                        "planId", planId,
+                        "planName", planOpt.get().getName(),
+                        "planPrice", planOpt.get().getPrice()),
+                HttpStatus.OK);
+    }
+
+    @PostMapping("/subscribe/test/{planId}")
+    public ResponseEntity<?> subscribeTest(@PathVariable Long planId) {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         String email = auth.getName();
 
@@ -82,9 +108,7 @@ public class SubscriptionController {
         return new ResponseEntity<>(
                 Map.of(
                         "plan", account.getSubscriptionPlan(),
-                        "remainingSends", account.getRemainingWeeklySends()
-                ),
-                HttpStatus.OK
-        );
+                        "remainingSends", account.getRemainingWeeklySends()),
+                HttpStatus.OK);
     }
 }

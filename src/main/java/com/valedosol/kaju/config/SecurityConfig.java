@@ -34,6 +34,7 @@ public class SecurityConfig {
                 )
                 .authorizeHttpRequests((auth)
                         -> auth.requestMatchers("/auth/**").permitAll() // Allow all methods on /auth/**
+                        .requestMatchers("/api/payments/webhook").permitAll() // Stripe webhook
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(manager -> manager
