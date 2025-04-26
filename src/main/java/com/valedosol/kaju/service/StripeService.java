@@ -5,9 +5,11 @@ import com.stripe.exception.StripeException;
 import com.stripe.model.*;
 import com.stripe.net.Webhook;
 import com.stripe.param.*;
+import com.stripe.param.checkout.SessionCreateParams;
 import com.valedosol.kaju.model.Account;
 import com.valedosol.kaju.model.StripeSubscription;
 import com.valedosol.kaju.model.SubscriptionPlan;
+import com.valedosol.kaju.repository.AccountRepository;
 import com.valedosol.kaju.repository.StripeSubscriptionRepository;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -30,18 +32,34 @@ public class StripeService {
     private String webhookSecret;
 
     private final StripeSubscriptionRepository stripeSubscriptionRepository;
+    private final AccountRepository accountRepository;
 
-    public StripeService(StripeSubscriptionRepository stripeSubscriptionRepository) {
+    public StripeService(StripeSubscriptionRepository stripeSubscriptionRepository, 
+                         AccountRepository accountRepository) {
         this.stripeSubscriptionRepository = stripeSubscriptionRepository;
+        this.accountRepository = accountRepository;
     }
 
     public String getPublicKey() {
         return stripePublicKey;
     }
 
-    // Cria ou obtém cliente no Stripe
+    public PaymentIntent createPaymentIntent(double amount, String currency) throws StripeException {
+        PaymentIntentCreateParams params = PaymentIntentCreateParams.builder()
+            .setAmount((long)(amount * 100)) // Convert to cents
+            .setCurrency(currency)
+            .setAutomaticPaymentMethods(
+                PaymentIntentCreateParams.AutomaticPaymentMethods.builder()
+                    .setEnabled(true)
+                    .build()
+            )
+            .build();
+            
+        return PaymentIntent.create(params);
+    }
+    // Create or get customer in Stripe
     public Customer createOrGetCustomer(Account account) throws StripeException {
-        // Busca no banco de dados se já existe um customer ID para este usuário
+        // Check if customer already exists
         StripeSubscription existingSubscription = stripeSubscriptionRepository
                 .findByAccountId(account.getId())
                 .orElse(null);
@@ -50,6 +68,7 @@ public class StripeService {
             return Customer.retrieve(existingSubscription.getStripeCustomerId());
         }
 
+        // Create new customer using the builder pattern (SDK 29.0.0)
         CustomerCreateParams params = CustomerCreateParams.builder()
                 .setEmail(account.getEmail())
                 .setName(account.getNickname())
@@ -57,7 +76,7 @@ public class StripeService {
 
         Customer customer = Customer.create(params);
         
-        // Se não existir inscrição ainda, criar uma nova entrada
+        // Create or update subscription record
         if (existingSubscription == null) {
             existingSubscription = new StripeSubscription();
             existingSubscription.setAccount(account);
@@ -69,58 +88,66 @@ public class StripeService {
         return customer;
     }
 
-    // Método para criar um produto no Stripe (representa um plano de assinatura)
+    // Create a product in Stripe (represents a subscription plan)
     public Product createProduct(SubscriptionPlan plan) throws StripeException {
-        Map<String, Object> productParams = new HashMap<>();
-        productParams.put("name", plan.getName());
-        productParams.put("description", "Plano " + plan.getName() + ": " + plan.getWeeklyAllowedSends() + " envios semanais");
-        
-        return Product.create(productParams);
+        ProductCreateParams params = ProductCreateParams.builder()
+            .setName(plan.getName())
+            .setDescription("Plano " + plan.getName() + ": " + plan.getWeeklyAllowedSends() + " envios semanais")
+            .build();
+            
+        return Product.create(params);
     }
 
-    // Método para criar um preço vinculado a um produto (define o valor do plano)
+    // Create a price linked to a product (defines the plan price)
     public Price createPrice(String productId, SubscriptionPlan plan) throws StripeException {
-        Map<String, Object> priceParams = new HashMap<>();
-        priceParams.put("product", productId);
-        priceParams.put("unit_amount", (int)(plan.getPrice() * 100)); // Stripe trabalha em centavos
-        priceParams.put("currency", "brl");
-        priceParams.put("recurring", Map.of(
-            "interval", "month",   // Cobrança mensal
-            "interval_count", 1    // A cada 1 mês
-        ));
-        
-        return Price.create(priceParams);
+        PriceCreateParams.Recurring recurring = PriceCreateParams.Recurring.builder()
+            .setInterval(PriceCreateParams.Recurring.Interval.MONTH)
+            .setIntervalCount(1L)
+            .build();
+            
+        PriceCreateParams params = PriceCreateParams.builder()
+            .setProduct(productId)
+            .setUnitAmount((long)(plan.getPrice() * 100)) // Stripe works in cents
+            .setCurrency("brl")
+            .setRecurring(recurring)
+            .build();
+            
+        return Price.create(params);
     }
 
-    // Cria uma sessão de checkout do Stripe
-    public Map<String, Object> createCheckoutSession(Account account, SubscriptionPlan plan, String successUrl, String cancelUrl) throws StripeException {
-        // Assegurar que o cliente existe no Stripe
+    // Create a Stripe checkout session
+    public Map<String, Object> createCheckoutSession(Account account, SubscriptionPlan plan, 
+                                                   String successUrl, String cancelUrl) throws StripeException {
+        // Ensure the customer exists in Stripe
         Customer customer = createOrGetCustomer(account);
 
-        // Criar produto se necessário (ou usar ID existente em um sistema de produção)
+        // Create product
         Product product = createProduct(plan);
         
-        // Criar preço para o produto
+        // Create price for the product
         Price price = createPrice(product.getId(), plan);
         
-        // Cria a sessão de checkout
-        List<Object> lineItems = new ArrayList<>();
-        Map<String, Object> lineItem = new HashMap<>();
-        lineItem.put("price", price.getId());
-        lineItem.put("quantity", 1);
-        lineItems.add(lineItem);
+        // Create checkout session with builder pattern
+        List<SessionCreateParams.LineItem> lineItems = new ArrayList<>();
+        lineItems.add(
+            SessionCreateParams.LineItem.builder()
+                .setPrice(price.getId())
+                .setQuantity(1L)
+                .build()
+        );
         
-        Map<String, Object> params = new HashMap<>();
-        params.put("customer", customer.getId());
-        params.put("payment_method_types", List.of("card"));
-        params.put("line_items", lineItems);
-        params.put("mode", "subscription");
-        params.put("success_url", successUrl);
-        params.put("cancel_url", cancelUrl);
+        SessionCreateParams params = SessionCreateParams.builder()
+            .setCustomer(customer.getId())
+            .addPaymentMethodType(SessionCreateParams.PaymentMethodType.CARD)
+            .addAllLineItem(lineItems)
+            .setMode(SessionCreateParams.Mode.SUBSCRIPTION)
+            .setSuccessUrl(successUrl)
+            .setCancelUrl(cancelUrl)
+            .build();
         
         com.stripe.model.checkout.Session session = com.stripe.model.checkout.Session.create(params);
         
-        // Retorna os dados necessários para o frontend
+        // Return data needed for the frontend
         Map<String, Object> responseData = new HashMap<>();
         responseData.put("sessionId", session.getId());
         responseData.put("publicKey", stripePublicKey);
@@ -128,95 +155,99 @@ public class StripeService {
         return responseData;
     }
 
-    // Método para processar eventos de webhook do Stripe
+    // Process Stripe webhook events
     public void processWebhookEvent(String payload, String sigHeader) throws StripeException {
-  
-    Event event = null;
-    
-    try {
-        event = Webhook.constructEvent(payload, sigHeader, webhookSecret);
-    } catch (SignatureVerificationException e) {
-        throw new StripeException("Invalid signature", null, null, null, null) {};
-    }
-    
-    // Processar o evento baseado no tipo
-    switch (event.getType()) {
-        case "checkout.session.completed":
-            // A sessão de checkout foi completada com sucesso
-            com.stripe.model.checkout.Session session = 
-                (com.stripe.model.checkout.Session) event.getDataObjectDeserializer().getObject().get();
-            handleSuccessfulPayment(session);
-            break;
-            
-        case "invoice.paid":
-            // Fatura paga (renovação de assinatura)
-            Invoice invoice = (Invoice) event.getDataObjectDeserializer().getObject().get();
-            handleSuccessfulRenewal(invoice);
-            break;
-            
-        case "customer.subscription.updated":
-            // Assinatura atualizada
-            com.stripe.model.Subscription subscription = 
-                (com.stripe.model.Subscription) event.getDataObjectDeserializer().getObject().get();
-            handleSubscriptionUpdate(subscription);
-            break;
-            
-        case "customer.subscription.deleted":
-            // Assinatura cancelada
-            com.stripe.model.Subscription canceledSubscription = 
-                (com.stripe.model.Subscription) event.getDataObjectDeserializer().getObject().get();
-            handleSubscriptionCancellation(canceledSubscription);
-            break;
-            
-        default:
-            System.out.println("Unhandled event type: " + event.getType());
-    }
-}
-
-private void handleSuccessfulPayment(com.stripe.model.checkout.Session session) {
-    // Ativar a assinatura do usuário
-    String subscriptionId = session.getSubscription();
-    try {
-        activateSubscription(subscriptionId);
-    } catch (StripeException e) {
-        e.printStackTrace();
-    }
-}
-
-private void handleSuccessfulRenewal(Invoice invoice) {
-    // Processar renovação de assinatura
-    String subscriptionId = invoice.getSubscription();
-    try {
-        // Renovar assinatura no sistema
-        activateSubscription(subscriptionId);
-    } catch (StripeException e) {
-        e.printStackTrace();
-    }
-}
-
-private void handleSubscriptionUpdate(com.stripe.model.Subscription subscription) {
-    // Atualizar status da assinatura no sistema
-    // Exemplo: mudança de plano, pausa, etc.
-}
-
-private void handleSubscriptionCancellation(com.stripe.model.Subscription subscription) {
-    // Marcar assinatura como cancelada no sistema
-    StripeSubscription stripeSubscription = stripeSubscriptionRepository
-        .findByStripeSubscriptionId(subscription.getId())
-        .orElse(null);
-    
-    if (stripeSubscription != null) {
-        stripeSubscription.setStatus("canceled");
-        stripeSubscriptionRepository.save(stripeSubscription);
+        Event event;
         
-        // Você também pode atualizar o plano do usuário para gratuito
-        Account account = stripeSubscription.getAccount();
-        account.setSubscriptionPlan(null);
-        // accountRepository.save(account);
+        try {
+            event = Webhook.constructEvent(payload, sigHeader, webhookSecret);
+        } catch (SignatureVerificationException e) {
+            throw new StripeException("Invalid signature", null, null, null, null) {};
+        }
+        
+        // Process the event based on type
+        EventDataObjectDeserializer dataObjectDeserializer = event.getDataObjectDeserializer();
+        
+        switch (event.getType()) {
+            case "checkout.session.completed":
+                if (dataObjectDeserializer.getObject().isPresent()) {
+                    com.stripe.model.checkout.Session session = 
+                        (com.stripe.model.checkout.Session) dataObjectDeserializer.getObject().get();
+                    handleSuccessfulPayment(session);
+                }
+                break;
+                
+            case "invoice.paid":
+                if (dataObjectDeserializer.getObject().isPresent()) {
+                    Invoice invoice = (Invoice) dataObjectDeserializer.getObject().get();
+                    handleSuccessfulRenewal(invoice);
+                }
+                break;
+                
+            case "customer.subscription.updated":
+                if (dataObjectDeserializer.getObject().isPresent()) {
+                    com.stripe.model.Subscription subscription = 
+                        (com.stripe.model.Subscription) dataObjectDeserializer.getObject().get();
+                    handleSubscriptionUpdate(subscription);
+                }
+                break;
+                
+            case "customer.subscription.deleted":
+                if (dataObjectDeserializer.getObject().isPresent()) {
+                    com.stripe.model.Subscription canceledSubscription = 
+                        (com.stripe.model.Subscription) dataObjectDeserializer.getObject().get();
+                    handleSubscriptionCancellation(canceledSubscription);
+                }
+                break;
+                
+            default:
+                System.out.println("Unhandled event type: " + event.getType());
+        }
     }
-}
 
-    // Método para ativar uma assinatura após pagamento bem-sucedido
+    private void handleSuccessfulPayment(com.stripe.model.checkout.Session session) {
+        // Activate user subscription
+        String subscriptionId = session.getSubscription();
+        try {
+            activateSubscription(subscriptionId);
+        } catch (StripeException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void handleSuccessfulRenewal(Invoice invoice) {
+        // Process subscription renewal
+        String subscriptionId = invoice.getSubscription();
+        try {
+            activateSubscription(subscriptionId);
+        } catch (StripeException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void handleSubscriptionUpdate(com.stripe.model.Subscription subscription) {
+        // Update subscription status in the system
+        // Example: plan change, pause, etc.
+    }
+
+    private void handleSubscriptionCancellation(com.stripe.model.Subscription subscription) {
+        // Mark subscription as canceled in the system
+        StripeSubscription stripeSubscription = stripeSubscriptionRepository
+            .findByStripeSubscriptionId(subscription.getId())
+            .orElse(null);
+        
+        if (stripeSubscription != null) {
+            stripeSubscription.setStatus("canceled");
+            stripeSubscriptionRepository.save(stripeSubscription);
+            
+            // Update user plan to free tier
+            Account account = stripeSubscription.getAccount();
+            account.setSubscriptionPlan(null);
+            accountRepository.save(account);
+        }
+    }
+
+    // Activate subscription after successful payment
     public void activateSubscription(String stripeSubscriptionId) throws StripeException {
         com.stripe.model.Subscription stripeSubscription = 
             com.stripe.model.Subscription.retrieve(stripeSubscriptionId);
@@ -226,10 +257,10 @@ private void handleSubscriptionCancellation(com.stripe.model.Subscription subscr
             .orElse(null);
         
         if (subscription != null && "active".equals(stripeSubscription.getStatus())) {
-            // Atualizar status da assinatura
+            // Update subscription status
             subscription.setStatus("active");
             
-            // Atualizar próxima data de cobrança
+            // Update next billing date
             long nextBillingTimestamp = stripeSubscription.getCurrentPeriodEnd();
             LocalDateTime nextBillingDate = 
                 LocalDateTime.ofInstant(Instant.ofEpochSecond(nextBillingTimestamp), ZoneId.systemDefault());
@@ -237,21 +268,24 @@ private void handleSubscriptionCancellation(com.stripe.model.Subscription subscr
             
             stripeSubscriptionRepository.save(subscription);
             
-            // Atualizar o plano do usuário no sistema
+            // Update user plan in the system
             Account account = subscription.getAccount();
             account.setSubscriptionPlan(subscription.getSubscriptionPlan());
             account.setRemainingWeeklySends(subscription.getSubscriptionPlan().getWeeklyAllowedSends());
-            // Salvar account em AccountRepository
+            accountRepository.save(account);
         }
     }
 
-    // Método para cancelar uma assinatura
+    // Cancel a subscription
     public void cancelSubscription(String stripeSubscriptionId) throws StripeException {
+        SubscriptionCancelParams params = SubscriptionCancelParams.builder()
+            .build();
+            
         com.stripe.model.Subscription subscription = 
             com.stripe.model.Subscription.retrieve(stripeSubscriptionId);
-        subscription.cancel();
+        subscription.cancel(params);
         
-        // Atualizar o status da assinatura no banco de dados
+        // Update subscription status in the database
         StripeSubscription stripeSubscription = stripeSubscriptionRepository
             .findByStripeSubscriptionId(stripeSubscriptionId)
             .orElse(null);
