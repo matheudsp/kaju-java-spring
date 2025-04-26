@@ -1,0 +1,680 @@
+{
+	"info": {
+		"_postman_id": "d2dc7595-04bd-42d1-b95d-4cf3db316155",
+		"name": "Kaju: Promo Sender",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+		"_exporter_id": "29364622"
+	},
+	"item": [
+		{
+			"name": "/auth",
+			"item": [
+				{
+					"name": "Public Resource",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseURL}}/public_resource",
+							"host": [
+								"{{baseURL}}"
+							],
+							"path": [
+								"public_resource"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Secret Resource",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseURL}}/secret_resource",
+							"host": [
+								"{{baseURL}}"
+							],
+							"path": [
+								"secret_resource"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Sign Up",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"name\":\"matheudsp\",\r\n    \"email\":\"mdsp.personal@gmail.com\",\r\n    \"password\":\"12345\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseURL}}/auth/signup",
+							"host": [
+								"{{baseURL}}"
+							],
+							"path": [
+								"auth",
+								"signup"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Sign In",
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"email\":\"mdsp.personal@gmail.com\",\r\n    \"password\":\"12345\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseURL}}/auth/signin",
+							"host": [
+								"{{baseURL}}"
+							],
+							"path": [
+								"auth",
+								"signin"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Sign Out",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{baseURL}}/auth/signout",
+							"host": [
+								"{{baseURL}}"
+							],
+							"path": [
+								"auth",
+								"signout"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "/api/promotions",
+			"item": [
+				{
+					"name": "getMyPromotions",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseURL}}/api/promotions",
+							"host": [
+								"{{baseURL}}"
+							],
+							"path": [
+								"api",
+								"promotions"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "getMyPromotionsById",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseURL}}/api/promotions/33",
+							"host": [
+								"{{baseURL}}"
+							],
+							"path": [
+								"api",
+								"promotions",
+								"33"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "getMyPromotionsRecurrent",
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"title\": \"Promoção de Primavera Atualizada\",\r\n    \"description\": \"40% de desconto em produtos selecionados! Oferta limitada.\",\r\n    \"scheduledTime\": \"2025-05-01T10:00:00\",\r\n    \"targetIds\": [\r\n        1\r\n    ]\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseURL}}/api/promotions/recurring",
+							"host": [
+								"{{baseURL}}"
+							],
+							"path": [
+								"api",
+								"promotions",
+								"recurring"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "cancelPromotion",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{baseURL}}/api/promotions/10",
+							"host": [
+								"{{baseURL}}"
+							],
+							"path": [
+								"api",
+								"promotions",
+								"10"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "createPromotion",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "\r\n{\r\n    \"title\": \"Promoção de Teste\",\r\n    \"description\": \"Esta é uma promoção de teste para o Kaju\",\r\n    \"imageUrl\": \"https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSJnbkylGhZkC_VkV6h-i403C7y57CEFITafQ&s\",\r\n    \"targetIds\": [\r\n        1,\r\n        2\r\n    ],\r\n    \"scheduledTime\": \"2025-04-22T06:00:00\",\r\n    \"recurring\": true,\r\n    \"recurrenceDayOfWeek\": 5,\r\n    \"recurrenceEndDate\": \"2025-05-25T15:00:00\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseURL}}/api/promotions",
+							"host": [
+								"{{baseURL}}"
+							],
+							"path": [
+								"api",
+								"promotions"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "sendPromotionNow",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n  \"title\": \"Promoção Flash\",\r\n  \"description\": \"Esta promoção começa imediatamente!\",\r\n  \"imageUrl\": \"https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcSJnbkylGhZkC_VkV6h-i403C7y57CEFITafQ&s\",\r\n  \"targetIds\": [1,2]\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseURL}}/api/promotions/send-now",
+							"host": [
+								"{{baseURL}}"
+							],
+							"path": [
+								"api",
+								"promotions",
+								"send-now"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "createScheduledPromotion",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n  \"title\": \"Promoção de Primavera\",\r\n  \"description\": \"30% de desconto em produtos selecionados\",\r\n  \"imageUrl\": \"https://example.com/promo-spring.jpg\",\r\n  \"scheduledTime\": \"2025-04-30T14:00:00\",\r\n  \"recurring\": false,\r\n  \"targetIds\": [1, 2]\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseURL}}/api/promotions",
+							"host": [
+								"{{baseURL}}"
+							],
+							"path": [
+								"api",
+								"promotions"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "updatePromotions",
+					"request": {
+						"method": "PUT",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"title\": \"Promoção de Primavera Atualizada\",\r\n    \"description\": \"40% de desconto em produtos selecionados! Oferta limitada.\",\r\n    \"scheduledTime\": \"2025-05-01T10:00:00\",\r\n    \"targetIds\": [\r\n        1\r\n    ]\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseURL}}/api/promotions/37",
+							"host": [
+								"{{baseURL}}"
+							],
+							"path": [
+								"api",
+								"promotions",
+								"37"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "createScheduledRecurrentPromotion",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n  \"title\": \"Promoção de Fim de Semana\",\r\n  \"description\": \"20% de desconto em todos os produtos toda sexta-feira\",\r\n  \"imageUrl\": \"https://example.com/promo-weekend.jpg\",\r\n  \"scheduledTime\": \"2025-04-25T18:00:00\",\r\n  \"recurring\": true,\r\n  \"recurrenceDayOfWeek\": 5,\r\n  \"recurrenceEndDate\": \"2025-07-31T23:59:59\",\r\n  \"targetIds\": [1,2]\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseURL}}/api/promotions",
+							"host": [
+								"{{baseURL}}"
+							],
+							"path": [
+								"api",
+								"promotions"
+							]
+						}
+					},
+					"response": []
+				}
+			],
+			"description": "need implement quartz to schedule message sending"
+		},
+		{
+			"name": "/api/subscriptions",
+			"item": [
+				{
+					"name": "getAllPlans",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseURL}}/api/subscriptions/plans",
+							"host": [
+								"{{baseURL}}"
+							],
+							"path": [
+								"api",
+								"subscriptions",
+								"plans"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "subscribe",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{baseURL}}/api/subscriptions/subscribe/2",
+							"host": [
+								"{{baseURL}}"
+							],
+							"path": [
+								"api",
+								"subscriptions",
+								"subscribe",
+								"2"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "getMyPlan",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseURL}}/api/subscriptions/my-plan",
+							"host": [
+								"{{baseURL}}"
+							],
+							"path": [
+								"api",
+								"subscriptions",
+								"my-plan"
+							]
+						}
+					},
+					"response": []
+				}
+			],
+			"description": "need add payment gateway recurrency subscription payment"
+		},
+		{
+			"name": "/whapi",
+			"item": [
+				{
+					"name": "Get Newsletter",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "7Qy2hSNO8WLsm9y5L7EvSVW9efnfPiNO",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{whapiURL}}/newsletters?count=100",
+							"host": [
+								"{{whapiURL}}"
+							],
+							"path": [
+								"newsletters"
+							],
+							"query": [
+								{
+									"key": "count",
+									"value": "100"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "GetGroups",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "7Qy2hSNO8WLsm9y5L7EvSVW9efnfPiNO",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{whapiURL}}/groups?count=100",
+							"host": [
+								"{{whapiURL}}"
+							],
+							"path": [
+								"groups"
+							],
+							"query": [
+								{
+									"key": "count",
+									"value": "100"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "💬Send text message",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "7Qy2hSNO8WLsm9y5L7EvSVW9efnfPiNO",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"body\":\"Hello World\",\r\n    \"to\":\"120363417811722085@newsletter\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{whapiURL}}/messages/text",
+							"host": [
+								"{{whapiURL}}"
+							],
+							"path": [
+								"messages",
+								"text"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "📸Send media-image message",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "7Qy2hSNO8WLsm9y5L7EvSVW9efnfPiNO",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"to\": \"120363417811722085@newsletter\",\r\n    \"caption\": \"Olá, você está no Kaju! A plataforma de promoções e notícias do Piauí!\",\r\n    \"media\": \"https://upload.wikimedia.org/wikipedia/commons/3/3f/JPEG_example_flower.jpg\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{whapiURL}}/messages/image",
+							"host": [
+								"{{whapiURL}}"
+							],
+							"path": [
+								"messages",
+								"image"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "/api/targets",
+			"item": [
+				{
+					"name": "getTargetById",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseURL}}/api/targets/1",
+							"host": [
+								"{{baseURL}}"
+							],
+							"path": [
+								"api",
+								"targets",
+								"1"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "createTarget",
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n  \"name\": \"Meu Grupo WhatsApp\",\r\n  \"identifier\": \"987654321@g.us\",\r\n  \"type\": \"group\",\r\n  \"description\": \"Grupo WhatsApp para minhas promoções\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseURL}}/api/targets",
+							"host": [
+								"{{baseURL}}"
+							],
+							"path": [
+								"api",
+								"targets"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "deleteTarget",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n  \"name\": \"Meu Grupo WhatsApp\",\r\n  \"identifier\": \"987654321@g.us\",\r\n  \"type\": \"group\",\r\n  \"description\": \"Grupo WhatsApp para minhas promoções\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{baseURL}}/api/targets/3",
+							"host": [
+								"{{baseURL}}"
+							],
+							"path": [
+								"api",
+								"targets",
+								"3"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "getTargetsByType",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseURL}}/api/targets/type/newsletter",
+							"host": [
+								"{{baseURL}}"
+							],
+							"path": [
+								"api",
+								"targets",
+								"type",
+								"newsletter"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "getAllTargets",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{baseURL}}/api/targets",
+							"host": [
+								"{{baseURL}}"
+							],
+							"path": [
+								"api",
+								"targets"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		}
+	]
+}

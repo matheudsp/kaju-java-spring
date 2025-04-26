@@ -8,5 +8,12 @@ import java.util.Optional;
 
 public interface TargetRepository extends JpaRepository<Target, Long> {
     Optional<Target> findByIdentifier(String identifier);
+    
     List<Target> findByType(String type);
+    
+    List<Target> findByOwnerId(Long accountId);
+    
+    List<Target> findByOwnerIsNull();
+    
+    List<Target> findByOwnerIsNullOrOwnerId(Long accountId);
 }
