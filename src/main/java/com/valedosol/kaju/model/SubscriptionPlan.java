@@ -16,6 +16,10 @@ public class SubscriptionPlan {
     private Integer weeklyAllowedSends;
     private Double price;
 
+    private String stripeProductId;
+    private String stripePriceId;
+    private String billingInterval = "month"; // "month" or "year"
+
     // Constructor
     public SubscriptionPlan(String name, Integer weeklyAllowedSends, Double price) {
         this.name = name;

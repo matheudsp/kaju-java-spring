@@ -1,6 +1,10 @@
-package com.valedosol.kaju.service;
+package com.valedosol.kaju.service.Stripe;
 
 import com.valedosol.kaju.dto.*;
+import com.valedosol.kaju.model.SubscriptionPlan;
+
+
+import com.valedosol.kaju.repository.SubscriptionPlanRepository;
 
 import com.stripe.Stripe;
 import com.stripe.exception.StripeException;
@@ -8,6 +12,7 @@ import com.stripe.model.*;
 import com.stripe.param.checkout.SessionCreateParams;
 import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Value;
+
 import org.springframework.stereotype.Service;
 import com.stripe.model.checkout.Session;
 import com.stripe.param.CustomerCreateParams;
@@ -21,10 +26,14 @@ import java.util.*;
 @Service
 @Slf4j
 public class StripeService {
+        private final SubscriptionPlanRepository subscriptionPlanRepository;
 
     @Value("${stripe.api.key}")
     private String stripeApiKey;
-
+    
+public StripeService(SubscriptionPlanRepository subscriptionPlanRepository) {
+        this.subscriptionPlanRepository = subscriptionPlanRepository;
+    }
     @PostConstruct
     public void init() {
         if (stripeApiKey == null || stripeApiKey.isEmpty()) {
@@ -107,62 +116,56 @@ public class StripeService {
     }
 
     public SessionDto createSubscriptionSession(SessionDto sessionDto) {
-
-        try {
-
-            Customer customer = findOrCreateCustomer("test@gmail.com", "Test User");
-
-            String clientUrl = "https://localhost:4200";
-            SessionCreateParams.Builder sessionCreateParamsBuilder = SessionCreateParams.builder()
-                    .setMode(SessionCreateParams.Mode.SUBSCRIPTION)
-                    .setCustomer(customer.getId())
-                    .setSuccessUrl(clientUrl + "/success-subscription?session_id={CHECKOUT_SESSION_ID}")
-                    .setCancelUrl(clientUrl + "/failure")
-                    // trial
-                    .setSubscriptionData(SessionCreateParams.SubscriptionData.builder()
-                            .setTrialPeriodDays(30L)
-                            .build());
-
-            String aPackage = String.valueOf(sessionDto.getData().get("PACKAGE"));
-            // add item and amount
-            sessionCreateParamsBuilder.addLineItem(
-                    SessionCreateParams.LineItem.builder()
-                            .setQuantity(1L)
-                            .setPriceData(SessionCreateParams.LineItem.PriceData
-                                    .builder()
-                                    .setProductData(SessionCreateParams.LineItem.PriceData.ProductData.builder()
-                                            .putMetadata("package", aPackage)
-                                            .putMetadata("user_id", sessionDto.getUserId())
-                                            .setName(aPackage)
-                                            .build())
-                                    .setCurrency("USD")
-                                    .setUnitAmountDecimal(BigDecimal
-                                            .valueOf(Objects.equals(aPackage, "YEAR") ? 99.99 * 100 : 9.99 * 100))
-                                    // recurring
-                                    .setRecurring(SessionCreateParams.LineItem.PriceData.Recurring.builder()
-                                            .setInterval(Objects.equals(aPackage, "YEAR")
-                                                    ? SessionCreateParams.LineItem.PriceData.Recurring.Interval.YEAR
-                                                    : SessionCreateParams.LineItem.PriceData.Recurring.Interval.MONTH)
-                                            .build())
-                                    .build())
-                            .build())
-                    .build();
-
-            SessionCreateParams.SubscriptionData subscriptionData = SessionCreateParams.SubscriptionData.builder()
-                    .putMetadata("package", aPackage)
-                    .putMetadata("user_id", sessionDto.getUserId())
-                    .build();
-            sessionCreateParamsBuilder.setSubscriptionData(subscriptionData);
-            Session session = Session.create(sessionCreateParamsBuilder.build());
-            sessionDto.setSessionUrl(session.getUrl());
-            sessionDto.setSessionId(session.getId());
-        } catch (StripeException e) {
-
-            log.error("Exception createPaymentSession", e);
-            sessionDto.setMessage(e.getMessage());
+    try {
+        // Get subscription plan from repository instead of hardcoded values
+        Long planId = Long.valueOf(sessionDto.getData().get("planId"));
+        Optional<SubscriptionPlan> planOpt = subscriptionPlanRepository.findById(planId);
+        
+        if (!planOpt.isPresent()) {
+            sessionDto.setMessage("Subscription plan not found");
+            return sessionDto;
         }
-
-        return sessionDto;
+        
+        SubscriptionPlan plan = planOpt.get();
+        String email = sessionDto.getData().get("email");
+        String fullName = sessionDto.getData().get("fullName");
+        
+        // Find or create customer
+        Customer customer = findOrCreateCustomer(email, fullName);
+        
+        String clientUrl = "https://yourfrontendurl.com";
+        SessionCreateParams.Builder sessionCreateParamsBuilder = SessionCreateParams.builder()
+                .setMode(SessionCreateParams.Mode.SUBSCRIPTION)
+                .setCustomer(customer.getId())
+                .setSuccessUrl(clientUrl + "/success-subscription?session_id={CHECKOUT_SESSION_ID}")
+                .setCancelUrl(clientUrl + "/failure");
+        
+        // Use Stripe Price ID from the plan
+        sessionCreateParamsBuilder.addLineItem(
+                SessionCreateParams.LineItem.builder()
+                        .setQuantity(1L)
+                        .setPrice(plan.getStripePriceId())
+                        .build());
+        
+        // Add metadata
+        SessionCreateParams.SubscriptionData subscriptionData = SessionCreateParams.SubscriptionData.builder()
+                .putMetadata("planId", plan.getId().toString())
+                .putMetadata("userId", sessionDto.getUserId())
+                .build();
+        
+        sessionCreateParamsBuilder.setSubscriptionData(subscriptionData);
+        Session session = Session.create(sessionCreateParamsBuilder.build());
+        
+        sessionDto.setSessionUrl(session.getUrl());
+        sessionDto.setSessionId(session.getId());
+    } catch (StripeException e) {
+        log.error("Exception creating subscription session", e);
+        sessionDto.setMessage(e.getMessage());
     }
+    
+    return sessionDto;
+}
+
+
 
 }
