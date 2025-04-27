@@ -34,7 +34,7 @@ public class SecurityConfig {
                 )
                 .authorizeHttpRequests((auth)
                         -> auth.requestMatchers("/auth/**").permitAll() // Allow all methods on /auth/**
-                        .requestMatchers("/api/payments/webhook").permitAll() // Stripe webhook
+                        .requestMatchers("/api/v2/stripe/**").permitAll() // Allow webhook endpoint without auth
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(manager -> manager

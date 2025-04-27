@@ -27,7 +27,7 @@ public class JwtService {
     private Claims claims;
 
     public String generateToken(String email, HttpServletResponse response) {
-        System.out.println("Generating token for: " + email);
+        // System.out.println("Generating token for: " + email);
 
         String JWT = Jwts.builder()
                 .subject(email)
@@ -36,8 +36,7 @@ public class JwtService {
                 .signWith(getSignInKey())
                 .compact();
 
-        System.out.println("Token generated: " + JWT.substring(0, 10) + "...");
-
+        // System.out.println("Token generated: " + JWT.substring(0, 10) + "...");
 
         Cookie cookie = new Cookie("JWT", JWT);
         cookie.setHttpOnly(true);
@@ -46,11 +45,11 @@ public class JwtService {
         cookie.setMaxAge(24 * 60 * 60);
         response.addCookie(cookie);
 
-// For older Servlet versions that don't support SameSite directly in Cookie
+        // For older Servlet versions that don't support SameSite directly in Cookie
         response.setHeader("Set-Cookie", String.format("JWT=%s; Max-Age=%d; Path=/; HttpOnly; SameSite=Lax",
                 JWT, 24 * 60 * 60));
 
-        System.out.println("Cookie added to response");
+        // System.out.println("Cookie added to response");
 
         return JWT;
     }
@@ -68,7 +67,7 @@ public class JwtService {
     }
 
     public void validateToken(String token) throws JwtException {
-        System.out.println("Validating token: " + token.substring(0, 10) + "...");
+        // System.out.println("Validating token: " + token.substring(0, 10) + "...");
 
         try {
             claims = Jwts.parser()
@@ -77,14 +76,14 @@ public class JwtService {
                     .parseSignedClaims(token)
                     .getPayload();
 
-            System.out.println("Token validation successful");
+            // System.out.println("Token validation successful");
             // Check if token is expired
             Date expiration = claims.getExpiration();
             if (expiration != null && expiration.before(new Date())) {
                 throw new JwtException("Token expired");
             }
-        } catch(JwtException e) {
-            System.out.println("Token validation failed: " + e.getMessage());
+        } catch (JwtException e) {
+            // System.out.println("Token validation failed: " + e.getMessage());
             throw new JwtException(e.getMessage());
         }
     }
@@ -97,7 +96,7 @@ public class JwtService {
     }
 
     private SecretKey getSignInKey() {
-//        SignatureAlgorithm.HS256, this.secret
+        // SignatureAlgorithm.HS256, this.secret
         byte[] keyBytes = Decoders.BASE64.decode(this.secret);
         return Keys.hmacShaKeyFor(keyBytes);
     }
