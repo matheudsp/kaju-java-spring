@@ -1,8 +1,8 @@
 package com.valedosol.kaju.service;
 
 
-import com.valedosol.kaju.Dto.LoginRequest;
-import com.valedosol.kaju.Dto.SignupRequest;
+import com.valedosol.kaju.dto.LoginRequest;
+import com.valedosol.kaju.dto.SignupRequest;
 import com.valedosol.kaju.model.Account;
 import com.valedosol.kaju.model.ERole;
 import com.valedosol.kaju.model.Role;

@@ -1,4 +1,4 @@
-package com.valedosol.kaju.config;
+package com.valedosol.kaju.configs.security;
 
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;

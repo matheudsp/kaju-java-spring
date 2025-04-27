@@ -1,4 +1,4 @@
-package com.valedosol.kaju.Dto;
+package com.valedosol.kaju.dto;
 
 import lombok.Data;
 

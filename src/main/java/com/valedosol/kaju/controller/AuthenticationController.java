@@ -1,9 +1,9 @@
 package com.valedosol.kaju.controller;
 
 
-import com.valedosol.kaju.Dto.LoginRequest;
-import com.valedosol.kaju.Dto.SignupRequest;
-import com.valedosol.kaju.config.JwtAuthenticationFilter;
+import com.valedosol.kaju.dto.LoginRequest;
+import com.valedosol.kaju.dto.SignupRequest;
+import com.valedosol.kaju.configs.security.JwtAuthenticationFilter;
 import com.valedosol.kaju.service.AuthenticationService;
 
 import jakarta.servlet.http.HttpServletRequest;

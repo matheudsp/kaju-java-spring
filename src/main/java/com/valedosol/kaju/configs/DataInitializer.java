@@ -1,4 +1,4 @@
-package com.valedosol.kaju.config;
+package com.valedosol.kaju.configs;
 
 import com.valedosol.kaju.model.SubscriptionPlan;
 import com.valedosol.kaju.model.Target;

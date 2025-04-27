@@ -1,4 +1,4 @@
-package com.valedosol.kaju.config;
+package com.valedosol.kaju.configs.security;
 
 import com.valedosol.kaju.service.CustomUserDetailsService;
 import com.valedosol.kaju.service.JwtService;

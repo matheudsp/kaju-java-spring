@@ -1,298 +1,352 @@
 package com.valedosol.kaju.service;
 
-import com.stripe.exception.SignatureVerificationException;
+import com.valedosol.kaju.dto.*;
+
+import com.stripe.Stripe;
 import com.stripe.exception.StripeException;
 import com.stripe.model.*;
-import com.stripe.net.Webhook;
-import com.stripe.param.*;
 import com.stripe.param.checkout.SessionCreateParams;
-import com.valedosol.kaju.model.Account;
-import com.valedosol.kaju.model.StripeSubscription;
-import com.valedosol.kaju.model.SubscriptionPlan;
-import com.valedosol.kaju.repository.AccountRepository;
-import com.valedosol.kaju.repository.StripeSubscriptionRepository;
+import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-
-import java.time.Instant;
-import java.time.LocalDateTime;
-import java.time.ZoneId;
+import com.stripe.model.checkout.Session;
+import com.stripe.param.CustomerCreateParams;
+import com.stripe.param.CustomerSearchParams;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import lombok.extern.slf4j.Slf4j;
+
+import java.math.BigDecimal;
+import java.util.*;
+
 
 @Service
+@Slf4j
 public class StripeService {
 
-    @Value("${stripe.public.key}")
-    private String stripePublicKey;
-    
-    @Value("${stripe.webhook.secret}")
-    private String webhookSecret;
+    @Value("${api.stripe.key}")
+    private String stripeApiKey;
 
-    private final StripeSubscriptionRepository stripeSubscriptionRepository;
-    private final AccountRepository accountRepository;
+    @PostConstruct
+    public void init() {
 
-    public StripeService(StripeSubscriptionRepository stripeSubscriptionRepository, 
-                         AccountRepository accountRepository) {
-        this.stripeSubscriptionRepository = stripeSubscriptionRepository;
-        this.accountRepository = accountRepository;
+        Stripe.apiKey = stripeApiKey;
     }
 
-    public String getPublicKey() {
-        return stripePublicKey;
-    }
+    public StripeTokenDto createCardToken(StripeTokenDto model) {
 
-    public PaymentIntent createPaymentIntent(double amount, String currency) throws StripeException {
-        PaymentIntentCreateParams params = PaymentIntentCreateParams.builder()
-            .setAmount((long)(amount * 100)) // Convert to cents
-            .setCurrency(currency)
-            .setAutomaticPaymentMethods(
-                PaymentIntentCreateParams.AutomaticPaymentMethods.builder()
-                    .setEnabled(true)
-                    .build()
-            )
-            .build();
-            
-        return PaymentIntent.create(params);
-    }
-    // Create or get customer in Stripe
-    public Customer createOrGetCustomer(Account account) throws StripeException {
-        // Check if customer already exists
-        StripeSubscription existingSubscription = stripeSubscriptionRepository
-                .findByAccountId(account.getId())
-                .orElse(null);
-
-        if (existingSubscription != null && existingSubscription.getStripeCustomerId() != null) {
-            return Customer.retrieve(existingSubscription.getStripeCustomerId());
+        try {
+            Map<String, Object> card = new HashMap<>();
+            card.put("number", model.getCardNumber());
+            card.put("exp_month", Integer.parseInt(model.getExpMonth()));
+            card.put("exp_year", Integer.parseInt(model.getExpYear()));
+            card.put("cvc", model.getCvc());
+            Map<String, Object> params = new HashMap<>();
+            params.put("card", card);
+            Token token = Token.create(params);
+            if (token != null && token.getId() != null) {
+                model.setSuccess(true);
+                model.setToken(token.getId());
+            }
+            return model;
+        } catch (StripeException e) {
+            log.error("StripeService (createCardToken)", e);
+            throw new RuntimeException(e.getMessage());
         }
 
-        // Create new customer using the builder pattern (SDK 29.0.0)
-        CustomerCreateParams params = CustomerCreateParams.builder()
-                .setEmail(account.getEmail())
-                .setName(account.getNickname())
+    }
+
+    public StripeChargeDto charge(StripeChargeDto chargeRequest) {
+
+
+        try {
+            chargeRequest.setSuccess(false);
+            Map<String, Object> chargeParams = new HashMap<>();
+            chargeParams.put("amount", (int) (chargeRequest.getAmount() * 100));
+            chargeParams.put("currency", "USD");
+            chargeParams.put("description", "Payment for id " + chargeRequest.getAdditionalInfo().getOrDefault("ID_TAG", ""));
+            chargeParams.put("source", chargeRequest.getStripeToken());
+            Map<String, Object> metaData = new HashMap<>();
+            metaData.put("id", chargeRequest.getChargeId());
+            metaData.putAll(chargeRequest.getAdditionalInfo());
+            chargeParams.put("metadata", metaData);
+            Charge charge = Charge.create(chargeParams);
+            chargeRequest.setMessage(charge.getOutcome().getSellerMessage());
+
+            if (charge.getPaid()) {
+                chargeRequest.setChargeId(charge.getId());
+                chargeRequest.setSuccess(true);
+
+            }
+            return chargeRequest;
+        } catch (StripeException e) {
+            log.error("StripeService (charge)", e);
+            throw new RuntimeException(e.getMessage());
+        }
+
+    }
+
+    public StripeSubscriptionResponse createSubscription(StripeSubscriptionDto subscriptionDto){
+
+
+        PaymentMethod paymentMethod = createPaymentMethod(subscriptionDto);
+        Customer customer = createCustomer(paymentMethod, subscriptionDto);
+        paymentMethod = attachCustomerToPaymentMethod(customer, paymentMethod);
+        Subscription subscription = createSubscription(subscriptionDto, paymentMethod, customer);
+
+        return createResponse(subscriptionDto,paymentMethod,customer,subscription);
+    }
+
+    private StripeSubscriptionResponse createResponse(StripeSubscriptionDto subscriptionDto, PaymentMethod paymentMethod, Customer customer, Subscription subscription) {
+
+
+
+        return StripeSubscriptionResponse.builder()
+                .username(subscriptionDto.getUsername())
+                .stripePaymentMethodId(paymentMethod.getId())
+                .stripeSubscriptionId(subscription.getId())
+                .stripeCustomerId(customer.getId())
                 .build();
+    }
 
-        Customer customer = Customer.create(params);
-        
-        // Create or update subscription record
-        if (existingSubscription == null) {
-            existingSubscription = new StripeSubscription();
-            existingSubscription.setAccount(account);
+    private PaymentMethod createPaymentMethod(StripeSubscriptionDto subscriptionDto){
+
+        try {
+
+            Map<String, Object> card = new HashMap<>();
+
+            card.put("number", subscriptionDto.getCardNumber());
+            card.put("exp_month", Integer.parseInt(subscriptionDto.getExpMonth()));
+            card.put("exp_year", Integer.parseInt(subscriptionDto.getExpYear()));
+            card.put("cvc", subscriptionDto.getCvc());
+
+            Map<String, Object> params = new HashMap<>();
+            params.put("type", "card");
+            params.put("card", card);
+
+            return PaymentMethod.create(params);
+
+        } catch (StripeException e) {
+            log.error("StripeService (createPaymentMethod)", e);
+            throw new RuntimeException(e.getMessage());
         }
-        
-        existingSubscription.setStripeCustomerId(customer.getId());
-        stripeSubscriptionRepository.save(existingSubscription);
-        
+    }
+
+    private Customer createCustomer(PaymentMethod paymentMethod,StripeSubscriptionDto subscriptionDto){
+
+        try {
+
+            Map<String, Object> customerMap = new HashMap<>();
+            customerMap.put("name", subscriptionDto.getUsername());
+            customerMap.put("email", subscriptionDto.getEmail());
+            customerMap.put("payment_method", paymentMethod.getId());
+
+            return Customer.create(customerMap);
+        } catch (StripeException e) {
+            log.error("StripeService (createCustomer)", e);
+            throw new RuntimeException(e.getMessage());
+        }
+
+    }
+
+    private PaymentMethod attachCustomerToPaymentMethod(Customer customer,PaymentMethod paymentMethod){
+
+        try {
+
+            paymentMethod = com.stripe.model.PaymentMethod.retrieve(paymentMethod.getId());
+
+            Map<String, Object> params = new HashMap<>();
+            params.put("customer", customer.getId());
+            paymentMethod = paymentMethod.attach(params);
+            return paymentMethod;
+
+
+        } catch (StripeException e) {
+            log.error("StripeService (attachCustomerToPaymentMethod)", e);
+            throw new RuntimeException(e.getMessage());
+        }
+
+    }
+
+    private Subscription createSubscription(StripeSubscriptionDto subscriptionDto,PaymentMethod paymentMethod,Customer customer){
+
+        try {
+
+            List<Object> items = new ArrayList<>();
+            Map<String, Object> item1 = new HashMap<>();
+            item1.put(
+                    "price",
+                    subscriptionDto.getPriceId()
+            );
+            item1.put("quantity",subscriptionDto.getNumberOfLicense());
+            items.add(item1);
+
+            Map<String, Object> params = new HashMap<>();
+            params.put("customer", customer.getId());
+            params.put("default_payment_method", paymentMethod.getId());
+            params.put("items", items);
+            return Subscription.create(params);
+        } catch (StripeException e) {
+            log.error("StripeService (createSubscription)", e);
+            throw new RuntimeException(e.getMessage());
+        }
+
+    }
+
+    public  Subscription cancelSubscription(String subscriptionId){
+
+        try {
+            Subscription retrieve = Subscription.retrieve(subscriptionId);
+            return retrieve.cancel();
+        } catch (StripeException e) {
+
+            log.error("StripeService (cancelSubscription)",e);
+        }
+
+        return null;
+    }
+
+
+    public SessionDto createPaymentSession(SessionDto sessionDto){
+
+        try {
+            double amount = 23.00; // 2300
+
+            Customer customer = findOrCreateCustomer("test@gmail.com","Test User");
+
+            String clientUrl ="https://localhost:4200";
+            SessionCreateParams.Builder sessionCreateParamsBuilder =SessionCreateParams.builder()
+                    .setMode(SessionCreateParams.Mode.PAYMENT)
+                    .setCustomer(customer.getId())
+                    .setSuccessUrl(clientUrl+"/success?session_id={CHECKOUT_SESSION_ID}")
+                    .setCancelUrl(clientUrl+"/failure");
+
+            // add item and amount
+            sessionCreateParamsBuilder.addLineItem(
+                    SessionCreateParams.LineItem.builder()
+                            .setQuantity(1L)
+                            .setPriceData(SessionCreateParams.LineItem.PriceData
+                                    .builder()
+                                    .setProductData(SessionCreateParams.LineItem.PriceData.ProductData.builder()
+                                            .putMetadata("cart_id","123")
+                                            .putMetadata("user_id",sessionDto.getUserId())
+                                            .setName("Shoes XL")
+                                            .build()
+                                    )
+                                    .setCurrency("USD")
+                                    .setUnitAmountDecimal(BigDecimal.valueOf(amount * 100))
+                                    .build())
+                            .build()
+            ).build();
+
+            SessionCreateParams.PaymentIntentData paymentIntentData=
+                    SessionCreateParams.PaymentIntentData.builder()
+                            .putMetadata("cart_id","123")
+                            .putMetadata("user_id",sessionDto.getUserId())
+                            .build();
+            sessionCreateParamsBuilder.setPaymentIntentData(paymentIntentData);
+            Session session = Session.create(sessionCreateParamsBuilder.build());
+            sessionDto.setSessionUrl(session.getUrl());
+            sessionDto.setSessionId(session.getId());
+        }catch (StripeException e){
+
+            log.error("Exception createPaymentSession",e);
+            sessionDto.setMessage(e.getMessage());
+        }
+
+
+        return sessionDto;
+    }
+
+    private Customer findOrCreateCustomer(String email, String fullName) throws StripeException {
+
+        CustomerSearchParams params=
+                CustomerSearchParams.builder()
+                        .setQuery("email:'"+email+"'")
+                        .build();
+
+        CustomerSearchResult search = Customer.search(params);
+        Customer customer;
+        if(search.getData().isEmpty()){
+
+            CustomerCreateParams customerCreateParams=
+                    CustomerCreateParams.builder()
+                            .setName(fullName)
+                            .setEmail(email)
+                            .build();
+            customer = Customer.create(customerCreateParams);
+        }else {
+            customer = search.getData().get(0);
+        }
+
         return customer;
     }
 
-    // Create a product in Stripe (represents a subscription plan)
-    public Product createProduct(SubscriptionPlan plan) throws StripeException {
-        ProductCreateParams params = ProductCreateParams.builder()
-            .setName(plan.getName())
-            .setDescription("Plano " + plan.getName() + ": " + plan.getWeeklyAllowedSends() + " envios semanais")
-            .build();
-            
-        return Product.create(params);
-    }
 
-    // Create a price linked to a product (defines the plan price)
-    public Price createPrice(String productId, SubscriptionPlan plan) throws StripeException {
-        PriceCreateParams.Recurring recurring = PriceCreateParams.Recurring.builder()
-            .setInterval(PriceCreateParams.Recurring.Interval.MONTH)
-            .setIntervalCount(1L)
-            .build();
-            
-        PriceCreateParams params = PriceCreateParams.builder()
-            .setProduct(productId)
-            .setUnitAmount((long)(plan.getPrice() * 100)) // Stripe works in cents
-            .setCurrency("brl")
-            .setRecurring(recurring)
-            .build();
-            
-        return Price.create(params);
-    }
 
-    // Create a Stripe checkout session
-    public Map<String, Object> createCheckoutSession(Account account, SubscriptionPlan plan, 
-                                                   String successUrl, String cancelUrl) throws StripeException {
-        // Ensure the customer exists in Stripe
-        Customer customer = createOrGetCustomer(account);
+    public SessionDto createSubscriptionSession(SessionDto sessionDto){
 
-        // Create product
-        Product product = createProduct(plan);
-        
-        // Create price for the product
-        Price price = createPrice(product.getId(), plan);
-        
-        // Create checkout session with builder pattern
-        List<SessionCreateParams.LineItem> lineItems = new ArrayList<>();
-        lineItems.add(
-            SessionCreateParams.LineItem.builder()
-                .setPrice(price.getId())
-                .setQuantity(1L)
-                .build()
-        );
-        
-        SessionCreateParams params = SessionCreateParams.builder()
-            .setCustomer(customer.getId())
-            .addPaymentMethodType(SessionCreateParams.PaymentMethodType.CARD)
-            .addAllLineItem(lineItems)
-            .setMode(SessionCreateParams.Mode.SUBSCRIPTION)
-            .setSuccessUrl(successUrl)
-            .setCancelUrl(cancelUrl)
-            .build();
-        
-        com.stripe.model.checkout.Session session = com.stripe.model.checkout.Session.create(params);
-        
-        // Return data needed for the frontend
-        Map<String, Object> responseData = new HashMap<>();
-        responseData.put("sessionId", session.getId());
-        responseData.put("publicKey", stripePublicKey);
-        
-        return responseData;
-    }
-
-    // Process Stripe webhook events
-    public void processWebhookEvent(String payload, String sigHeader) throws StripeException {
-        Event event;
-        
         try {
-            event = Webhook.constructEvent(payload, sigHeader, webhookSecret);
-        } catch (SignatureVerificationException e) {
-            throw new StripeException("Invalid signature", null, null, null, null) {};
+
+            Customer customer = findOrCreateCustomer("test@gmail.com","Test User");
+
+            String clientUrl ="https://localhost:4200";
+            SessionCreateParams.Builder sessionCreateParamsBuilder =SessionCreateParams.builder()
+                    .setMode(SessionCreateParams.Mode.SUBSCRIPTION)
+                    .setCustomer(customer.getId())
+                    .setSuccessUrl(clientUrl+"/success-subscription?session_id={CHECKOUT_SESSION_ID}")
+                    .setCancelUrl(clientUrl+"/failure")
+                    // trial
+                    .setSubscriptionData(SessionCreateParams.SubscriptionData.builder()
+                            .setTrialPeriodDays(30L)
+                            .build())
+                    ;
+
+
+            String aPackage = String.valueOf(sessionDto.getData().get("PACKAGE"));
+            // add item and amount
+            sessionCreateParamsBuilder.addLineItem(
+                    SessionCreateParams.LineItem.builder()
+                            .setQuantity(1L)
+                            .setPriceData(SessionCreateParams.LineItem.PriceData
+                                    .builder()
+                                    .setProductData(SessionCreateParams.LineItem.PriceData.ProductData.builder()
+                                            .putMetadata("package",aPackage)
+                                            .putMetadata("user_id",sessionDto.getUserId())
+                                            .setName(aPackage)
+                                            .build()
+                                    )
+                                    .setCurrency("USD")
+                                    .setUnitAmountDecimal(BigDecimal.valueOf(Objects.equals(aPackage,"YEAR")?99.99 * 100:9.99*100))
+                                   //recurring
+                                    .setRecurring(SessionCreateParams.LineItem.PriceData.Recurring.builder()
+                                            .setInterval(Objects.equals(aPackage,"YEAR")?SessionCreateParams.LineItem.PriceData.Recurring.Interval.YEAR: SessionCreateParams.LineItem.PriceData.Recurring.Interval.MONTH)
+                                            .build())
+                                    .build())
+                            .build()
+            ).build();
+
+            SessionCreateParams.SubscriptionData subscriptionData=
+                    SessionCreateParams.SubscriptionData.builder()
+                             .putMetadata("package",aPackage)
+                    .putMetadata("user_id",sessionDto.getUserId())
+                            .build();
+            sessionCreateParamsBuilder.setSubscriptionData(subscriptionData);
+            Session session = Session.create(sessionCreateParamsBuilder.build());
+            sessionDto.setSessionUrl(session.getUrl());
+            sessionDto.setSessionId(session.getId());
+        }catch (StripeException e){
+
+            log.error("Exception createPaymentSession",e);
+            sessionDto.setMessage(e.getMessage());
         }
-        
-        // Process the event based on type
-        EventDataObjectDeserializer dataObjectDeserializer = event.getDataObjectDeserializer();
-        
-        switch (event.getType()) {
-            case "checkout.session.completed":
-                if (dataObjectDeserializer.getObject().isPresent()) {
-                    com.stripe.model.checkout.Session session = 
-                        (com.stripe.model.checkout.Session) dataObjectDeserializer.getObject().get();
-                    handleSuccessfulPayment(session);
-                }
-                break;
-                
-            case "invoice.paid":
-                if (dataObjectDeserializer.getObject().isPresent()) {
-                    Invoice invoice = (Invoice) dataObjectDeserializer.getObject().get();
-                    handleSuccessfulRenewal(invoice);
-                }
-                break;
-                
-            case "customer.subscription.updated":
-                if (dataObjectDeserializer.getObject().isPresent()) {
-                    com.stripe.model.Subscription subscription = 
-                        (com.stripe.model.Subscription) dataObjectDeserializer.getObject().get();
-                    handleSubscriptionUpdate(subscription);
-                }
-                break;
-                
-            case "customer.subscription.deleted":
-                if (dataObjectDeserializer.getObject().isPresent()) {
-                    com.stripe.model.Subscription canceledSubscription = 
-                        (com.stripe.model.Subscription) dataObjectDeserializer.getObject().get();
-                    handleSubscriptionCancellation(canceledSubscription);
-                }
-                break;
-                
-            default:
-                System.out.println("Unhandled event type: " + event.getType());
-        }
+
+
+        return sessionDto;
     }
 
-    private void handleSuccessfulPayment(com.stripe.model.checkout.Session session) {
-        // Activate user subscription
-        String subscriptionId = session.getSubscription();
-        try {
-            activateSubscription(subscriptionId);
-        } catch (StripeException e) {
-            e.printStackTrace();
-        }
-    }
 
-    private void handleSuccessfulRenewal(Invoice invoice) {
-        // Process subscription renewal
-        String subscriptionId = invoice.getSubscription();
-        try {
-            activateSubscription(subscriptionId);
-        } catch (StripeException e) {
-            e.printStackTrace();
-        }
-    }
-
-    private void handleSubscriptionUpdate(com.stripe.model.Subscription subscription) {
-        // Update subscription status in the system
-        // Example: plan change, pause, etc.
-    }
-
-    private void handleSubscriptionCancellation(com.stripe.model.Subscription subscription) {
-        // Mark subscription as canceled in the system
-        StripeSubscription stripeSubscription = stripeSubscriptionRepository
-            .findByStripeSubscriptionId(subscription.getId())
-            .orElse(null);
-        
-        if (stripeSubscription != null) {
-            stripeSubscription.setStatus("canceled");
-            stripeSubscriptionRepository.save(stripeSubscription);
-            
-            // Update user plan to free tier
-            Account account = stripeSubscription.getAccount();
-            account.setSubscriptionPlan(null);
-            accountRepository.save(account);
-        }
-    }
-
-    // Activate subscription after successful payment
-    public void activateSubscription(String stripeSubscriptionId) throws StripeException {
-        com.stripe.model.Subscription stripeSubscription = 
-            com.stripe.model.Subscription.retrieve(stripeSubscriptionId);
-        
-        StripeSubscription subscription = stripeSubscriptionRepository
-            .findByStripeSubscriptionId(stripeSubscriptionId)
-            .orElse(null);
-        
-        if (subscription != null && "active".equals(stripeSubscription.getStatus())) {
-            // Update subscription status
-            subscription.setStatus("active");
-            
-            // Update next billing date
-            long nextBillingTimestamp = stripeSubscription.getCurrentPeriodEnd();
-            LocalDateTime nextBillingDate = 
-                LocalDateTime.ofInstant(Instant.ofEpochSecond(nextBillingTimestamp), ZoneId.systemDefault());
-            subscription.setNextBillingDate(nextBillingDate);
-            
-            stripeSubscriptionRepository.save(subscription);
-            
-            // Update user plan in the system
-            Account account = subscription.getAccount();
-            account.setSubscriptionPlan(subscription.getSubscriptionPlan());
-            account.setRemainingWeeklySends(subscription.getSubscriptionPlan().getWeeklyAllowedSends());
-            accountRepository.save(account);
-        }
-    }
-
-    // Cancel a subscription
-    public void cancelSubscription(String stripeSubscriptionId) throws StripeException {
-        SubscriptionCancelParams params = SubscriptionCancelParams.builder()
-            .build();
-            
-        com.stripe.model.Subscription subscription = 
-            com.stripe.model.Subscription.retrieve(stripeSubscriptionId);
-        subscription.cancel(params);
-        
-        // Update subscription status in the database
-        StripeSubscription stripeSubscription = stripeSubscriptionRepository
-            .findByStripeSubscriptionId(stripeSubscriptionId)
-            .orElse(null);
-        
-        if (stripeSubscription != null) {
-            stripeSubscription.setStatus("canceled");
-            stripeSubscriptionRepository.save(stripeSubscription);
-        }
-    }
 }
+

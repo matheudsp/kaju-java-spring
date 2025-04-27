@@ -18,7 +18,6 @@ import java.util.Date;
 @Service
 public class JwtService {
 
-    // set in .env
     @Value("${jwt.token.secret}")
     private String secret;
 
