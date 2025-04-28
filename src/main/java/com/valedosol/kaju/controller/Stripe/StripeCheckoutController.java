@@ -2,7 +2,6 @@ package com.valedosol.kaju.controller.Stripe;
 
 import com.valedosol.kaju.dto.SessionDto;
 import com.valedosol.kaju.model.Account;
-import com.valedosol.kaju.model.SubscriptionPlan;
 import com.valedosol.kaju.repository.AccountRepository;
 import com.valedosol.kaju.service.Stripe.StripeService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -33,7 +32,7 @@ public class StripeCheckoutController {
     public ResponseEntity<?> createSubscriptionSession(@RequestBody Map<String, String> payload,
             Authentication authentication) {
         try {
-            // Better handling of authentication
+            // Get authenticated user
             Object principal = authentication.getPrincipal();
             String email;
 
@@ -66,7 +65,7 @@ public class StripeCheckoutController {
             Map<String, String> data = new HashMap<>();
             data.put("planId", planId);
             data.put("email", account.getEmail());
-            data.put("fullName", "fulano da");
+            data.put("fullName", account.getNickname()); 
             sessionDto.setData(data);
 
             // Create subscription session

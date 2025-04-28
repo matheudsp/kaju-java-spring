@@ -2,7 +2,6 @@ package com.valedosol.kaju.service.Stripe;
 
 import com.valedosol.kaju.dto.*;
 import com.valedosol.kaju.model.SubscriptionPlan;
-
 import com.valedosol.kaju.repository.SubscriptionPlanRepository;
 
 import com.stripe.Stripe;
@@ -19,7 +18,6 @@ import com.stripe.param.CustomerSearchParams;
 
 import lombok.extern.slf4j.Slf4j;
 
-import java.math.BigDecimal;
 import java.util.*;
 
 @Service
@@ -41,63 +39,12 @@ public class StripeService {
     public void init() {
         if (stripeApiKey == null || stripeApiKey.isEmpty()) {
             log.warn("Stripe API key not configured. Stripe functionality will not work.");
-            // Provide some fallback behavior or just log a warning
         } else {
             Stripe.apiKey = stripeApiKey;
         }
     }
 
-    public SessionDto createPaymentSession(SessionDto sessionDto) {
-
-        try {
-            double amount = 23.00; // 2300
-
-            Customer customer = findOrCreateCustomer("test@gmail.com", "Test User");
-
-            SessionCreateParams.Builder sessionCreateParamsBuilder = SessionCreateParams.builder()
-                    .setMode(SessionCreateParams.Mode.PAYMENT)
-                    .setCustomer(customer.getId())
-                    .setSuccessUrl(clientUrl + "/success?session_id={CHECKOUT_SESSION_ID}")
-                    .setCancelUrl(clientUrl + "/failure");
-
-            // add item and amount
-            sessionCreateParamsBuilder.addLineItem(
-                    SessionCreateParams.LineItem.builder()
-                            .setQuantity(1L)
-                            .setPriceData(SessionCreateParams.LineItem.PriceData
-                                    .builder()
-                                    .setProductData(SessionCreateParams.LineItem.PriceData.ProductData.builder()
-                                            .putMetadata("cart_id", "123")
-                                            .putMetadata("user_id", sessionDto.getUserId())
-                                            .setName("Shoes XL")
-                                            .build())
-                                    .setCurrency("BRL")
-                                    .setUnitAmountDecimal(BigDecimal.valueOf(amount * 100))
-
-                                    .build())
-                            .build())
-                    .setMode(SessionCreateParams.Mode.SUBSCRIPTION)
-                    .build();
-
-            SessionCreateParams.PaymentIntentData paymentIntentData = SessionCreateParams.PaymentIntentData.builder()
-                    .putMetadata("cart_id", "123")
-                    .putMetadata("user_id", sessionDto.getUserId())
-                    .build();
-            sessionCreateParamsBuilder.setPaymentIntentData(paymentIntentData);
-            Session session = Session.create(sessionCreateParamsBuilder.build());
-            sessionDto.setSessionUrl(session.getUrl());
-            sessionDto.setSessionId(session.getId());
-        } catch (StripeException e) {
-
-            log.error("Exception createPaymentSession", e);
-            sessionDto.setMessage(e.getMessage());
-        }
-
-        return sessionDto;
-    }
-
     private Customer findOrCreateCustomer(String email, String fullName) throws StripeException {
-
         CustomerSearchParams params = CustomerSearchParams.builder()
                 .setQuery("email:'" + email + "'")
                 .build();
@@ -105,7 +52,6 @@ public class StripeService {
         CustomerSearchResult search = Customer.search(params);
         Customer customer;
         if (search.getData().isEmpty()) {
-
             CustomerCreateParams customerCreateParams = CustomerCreateParams.builder()
                     .setName(fullName)
                     .setEmail(email)
@@ -120,7 +66,7 @@ public class StripeService {
 
     public SessionDto createSubscriptionSession(SessionDto sessionDto) {
         try {
-            // Get subscription plan from repository instead of hardcoded values
+            // Get subscription plan from repository
             Long planId = Long.valueOf(sessionDto.getData().get("planId"));
             Optional<SubscriptionPlan> planOpt = subscriptionPlanRepository.findById(planId);
 
@@ -133,31 +79,36 @@ public class StripeService {
             String email = sessionDto.getData().get("email");
             String fullName = sessionDto.getData().get("fullName");
 
+            // Ensure the plan has a price ID in Stripe
+            if (plan.getStripePriceId() == null || plan.getStripePriceId().isEmpty()) {
+                sessionDto.setMessage("This plan is not properly configured with Stripe");
+                return sessionDto;
+            }
+
             // Find or create customer
             Customer customer = findOrCreateCustomer(email, fullName);
 
-            String clientUrl = "https://yourfrontendurl.com";
-            SessionCreateParams.Builder sessionCreateParamsBuilder = SessionCreateParams.builder()
+            SessionCreateParams.Builder sessionParamsBuilder = SessionCreateParams.builder()
                     .setMode(SessionCreateParams.Mode.SUBSCRIPTION)
                     .setCustomer(customer.getId())
                     .setSuccessUrl(clientUrl + "/success-subscription?session_id={CHECKOUT_SESSION_ID}")
                     .setCancelUrl(clientUrl + "/failure");
 
-            // Use Stripe Price ID from the plan
-            sessionCreateParamsBuilder.addLineItem(
+            // Add the subscription line item using the plan's price ID
+            sessionParamsBuilder.addLineItem(
                     SessionCreateParams.LineItem.builder()
                             .setQuantity(1L)
                             .setPrice(plan.getStripePriceId())
                             .build());
 
-            // Add metadata
+            // Add metadata to the subscription
             SessionCreateParams.SubscriptionData subscriptionData = SessionCreateParams.SubscriptionData.builder()
                     .putMetadata("planId", plan.getId().toString())
                     .putMetadata("userId", sessionDto.getUserId())
                     .build();
 
-            sessionCreateParamsBuilder.setSubscriptionData(subscriptionData);
-            Session session = Session.create(sessionCreateParamsBuilder.build());
+            sessionParamsBuilder.setSubscriptionData(subscriptionData);
+            Session session = Session.create(sessionParamsBuilder.build());
 
             sessionDto.setSessionUrl(session.getUrl());
             sessionDto.setSessionId(session.getId());
@@ -168,5 +119,4 @@ public class StripeService {
 
         return sessionDto;
     }
-
 }
