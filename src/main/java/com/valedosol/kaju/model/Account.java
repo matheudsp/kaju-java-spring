@@ -51,6 +51,7 @@ public class Account {
     }
 
     // Track subscription usage
+    @Builder.Default
     private Integer remainingWeeklySends = 0;
     private LocalDateTime lastResetDate;
 

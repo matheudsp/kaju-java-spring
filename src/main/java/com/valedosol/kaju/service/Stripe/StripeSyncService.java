@@ -46,7 +46,8 @@ public class StripeSyncService {
   private Product createStripeProduct(SubscriptionPlan plan) throws StripeException {
     Map<String, Object> params = new HashMap<>();
     params.put("name", plan.getName());
-    params.put("description", "Subscription plan with " + plan.getWeeklyAllowedSends() + " weekly allowed sends");
+    params.put("description", "Plano de assinatura com " + plan.getWeeklyAllowedSends() + " envios semanais.");
+    
 
     return Product.create(params);
   }

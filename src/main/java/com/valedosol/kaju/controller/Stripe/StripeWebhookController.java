@@ -1,4 +1,4 @@
-package com.valedosol.kaju.controller;
+package com.valedosol.kaju.controller.Stripe;
 
 import com.stripe.exception.SignatureVerificationException;
 import com.stripe.model.Event;
@@ -48,6 +48,8 @@ public class StripeWebhookController {
     @PostMapping("/webhook")
     public ResponseEntity<String> handleWebhook(@RequestBody String payload,
             @RequestHeader("Stripe-Signature") String sigHeader) {
+        log.info("Received webhook request with signature: {}", sigHeader.substring(0, 10) + "...");
+
         Event event;
 
         try {
@@ -157,7 +159,7 @@ public class StripeWebhookController {
                 stripeSubscriptionRepository.save(stripeSub);
 
                 // Optional: Handle account changes when subscription is cancelled
-                Account account = stripeSub.getAccount();
+                // Account account = stripeSub.getAccount();
                 // You may want to keep the subscription until the end of the billing period
                 // or immediately remove benefits depending on your business logic
             }

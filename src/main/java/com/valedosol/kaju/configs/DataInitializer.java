@@ -17,8 +17,8 @@ public class DataInitializer {
         return args -> {
             // Initialize subscription plans if they don't exist
             if (subscriptionPlanRepository.count() == 0) {
-                SubscriptionPlan beginner = new SubscriptionPlan("Iniciante", 1, 25.00);
-                SubscriptionPlan professional = new SubscriptionPlan("Profissional", 3, 50.00);
+                SubscriptionPlan beginner = new SubscriptionPlan("Prata", 1, 25.00);
+                SubscriptionPlan professional = new SubscriptionPlan("Ouro", 3, 50.00);
 
                 subscriptionPlanRepository.save(beginner);
                 subscriptionPlanRepository.save(professional);
