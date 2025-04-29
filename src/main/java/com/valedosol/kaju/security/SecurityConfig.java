@@ -33,8 +33,16 @@ public class SecurityConfig {
                         .authenticationEntryPoint(new RestAuthenticationEntryPoint())
                 )
                 .authorizeHttpRequests((auth)
-                        -> auth.requestMatchers("/auth/**").permitAll() // Allow all methods on /auth/**
-                        .requestMatchers("/api/v2/stripe/**").permitAll() // Allow webhook endpoint without auth
+                        -> auth
+                        // Allow authentication endpoints
+                        .requestMatchers("/auth/**").permitAll()
+                        // Allow Stripe webhook endpoint
+                        .requestMatchers("/api/v2/stripe/**").permitAll()
+                        // Allow Swagger UI and OpenAPI endpoints
+                        .requestMatchers("/swagger-ui.html").permitAll()
+                        .requestMatchers("/swagger-ui/**").permitAll()
+                        .requestMatchers("/api-docs/**").permitAll()
+                        .requestMatchers("/v3/api-docs/**").permitAll()
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(manager -> manager

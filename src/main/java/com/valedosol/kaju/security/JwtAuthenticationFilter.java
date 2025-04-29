@@ -39,16 +39,25 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
         String path = request.getRequestURI();
-
-        if (path.startsWith("/auth/") || path.startsWith("/api/v2/stripe/")) {
+        
+        // Skip authentication check for these paths
+        if (path.startsWith("/auth/") || 
+            path.startsWith("/api/v2/stripe/") ||
+            path.startsWith("/swagger-ui") ||
+            path.startsWith("/api-docs") ||
+            path.startsWith("/v3/api-docs")) {
             filterChain.doFilter(request, response);
             return;
         }
 
         try {
             String jwt = jwtService.getJwtFromCookie(request);
-
-            // System.out.println("JWT token found: " + jwt.substring(0, 10) + "...");
+            
+            // If no JWT token found, just continue the filter chain (security config will handle this)
+            if (jwt == null) {
+                filterChain.doFilter(request, response);
+                return;
+            }
 
             // Try to validate the token
             jwtService.validateToken(jwt);
@@ -66,11 +75,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             SecurityContextHolder.setContext(context);
 
         } catch (JwtException e) {
-            // System.out.println("JWT validation failed: " + e.getMessage());
-            e.printStackTrace();
+            logger.error("JWT validation failed: {}", e.getMessage());
         } catch (Exception e) {
-            // System.out.println("Authentication error: " + e.getMessage());
-            e.printStackTrace();
+            logger.error("Authentication error: {}", e.getMessage());
         }
 
         filterChain.doFilter(request, response);
