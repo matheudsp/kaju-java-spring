@@ -8,7 +8,7 @@ import com.valedosol.kaju.feature.auth.model.Account;
 import com.valedosol.kaju.feature.auth.repository.AccountRepository;
 import com.valedosol.kaju.feature.subscriptionPayment.model.StripeSubscription;
 import com.valedosol.kaju.feature.subscriptionPayment.repository.StripeSubscriptionRepository;
-import com.valedosol.kaju.feature.subscriptionPayment.service.StripeService;
+
 import com.valedosol.kaju.feature.subscriptionPlan.model.SubscriptionPlan;
 import com.valedosol.kaju.feature.subscriptionPlan.repository.SubscriptionPlanRepository;
 
@@ -25,7 +25,7 @@ import java.util.Optional;
 @Slf4j
 public class StripeWebhookController {
 
-    private final StripeService stripeService;
+    
     private final AccountRepository accountRepository;
     private final SubscriptionPlanRepository subscriptionPlanRepository;
     private final StripeSubscriptionRepository stripeSubscriptionRepository;
@@ -33,12 +33,12 @@ public class StripeWebhookController {
 
     @Autowired
     public StripeWebhookController(
-            StripeService stripeService,
+            
             AccountRepository accountRepository,
             SubscriptionPlanRepository subscriptionPlanRepository,
             StripeSubscriptionRepository stripeSubscriptionRepository,
             @Value("${stripe.webhook.secret}") String webhookSecret) {
-        this.stripeService = stripeService;
+        
         this.accountRepository = accountRepository;
         this.subscriptionPlanRepository = subscriptionPlanRepository;
         this.stripeSubscriptionRepository = stripeSubscriptionRepository;
