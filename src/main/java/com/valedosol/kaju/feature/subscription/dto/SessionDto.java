@@ -1,5 +1,4 @@
-package com.valedosol.kaju.feature.subscriptionPayment.dto;
-
+package com.valedosol.kaju.feature.subscription.dto;
 import lombok.Data;
 
 import java.util.Map;

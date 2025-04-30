@@ -1,7 +1,7 @@
 package com.valedosol.kaju.config;
 
-import com.valedosol.kaju.feature.subscriptionPlan.model.SubscriptionPlan;
-import com.valedosol.kaju.feature.subscriptionPlan.repository.SubscriptionPlanRepository;
+import com.valedosol.kaju.feature.subscription.model.SubscriptionPlan;
+import com.valedosol.kaju.feature.subscription.repository.SubscriptionPlanRepository;
 import com.valedosol.kaju.feature.target.model.Target;
 import com.valedosol.kaju.feature.target.repository.TargetRepository;
 

@@ -1,9 +1,8 @@
-package com.valedosol.kaju.feature.subscriptionPayment.service;
+package com.valedosol.kaju.feature.subscription.service;
 
-
-import com.valedosol.kaju.feature.subscriptionPayment.dto.SessionDto;
-import com.valedosol.kaju.feature.subscriptionPlan.model.SubscriptionPlan;
-import com.valedosol.kaju.feature.subscriptionPlan.repository.SubscriptionPlanRepository;
+import com.valedosol.kaju.feature.subscription.dto.SessionDto;
+import com.valedosol.kaju.feature.subscription.model.SubscriptionPlan;
+import com.valedosol.kaju.feature.subscription.repository.SubscriptionPlanRepository;
 import com.stripe.Stripe;
 import com.stripe.exception.StripeException;
 import com.stripe.model.*;

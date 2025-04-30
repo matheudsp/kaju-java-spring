@@ -1,4 +1,4 @@
-package com.valedosol.kaju.feature.subscriptionPlan.service;
+package com.valedosol.kaju.feature.subscription.service;
 
 
 
@@ -8,8 +8,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
-import com.valedosol.kaju.feature.subscriptionPlan.model.SubscriptionPlan;
-import com.valedosol.kaju.feature.subscriptionPlan.repository.SubscriptionPlanRepository;
+import com.valedosol.kaju.feature.subscription.model.SubscriptionPlan;
+import com.valedosol.kaju.feature.subscription.repository.SubscriptionPlanRepository;
 
 import java.util.List;
 

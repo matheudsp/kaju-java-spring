@@ -12,7 +12,7 @@ import java.util.HashSet;
 import java.util.Set;
 
 import com.valedosol.kaju.feature.role.model.Role;
-import com.valedosol.kaju.feature.subscriptionPlan.model.SubscriptionPlan;
+import com.valedosol.kaju.feature.subscription.model.SubscriptionPlan;
 
 
 @Entity
