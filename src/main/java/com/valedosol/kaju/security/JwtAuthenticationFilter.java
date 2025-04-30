@@ -19,6 +19,8 @@ import com.valedosol.kaju.feature.auth.service.CustomUserDetailsService;
 import com.valedosol.kaju.feature.auth.service.JwtService;
 
 import java.io.IOException;
+import java.util.Arrays;
+import java.util.List;
 
 import io.jsonwebtoken.JwtException;
 
@@ -27,53 +29,34 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
     private final CustomUserDetailsService customUserDetailsService;
+    private static final Logger logger = LoggerFactory.getLogger(JwtAuthenticationFilter.class);
+    
+    private static final List<String> PUBLIC_PATHS = Arrays.asList(
+            "/auth/",
+            "/api/v2/stripe/",
+            "/swagger-ui",
+            "/api-docs",
+            "/v3/api-docs"
+    );
 
     public JwtAuthenticationFilter(JwtService jwtService, CustomUserDetailsService customUserDetailsService) {
         this.jwtService = jwtService;
         this.customUserDetailsService = customUserDetailsService;
     }
 
-    private static final Logger logger = LoggerFactory.getLogger(JwtAuthenticationFilter.class);
-
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
             throws ServletException, IOException {
         String path = request.getRequestURI();
         
-        // Skip authentication check for these paths
-        if (path.startsWith("/auth/") || 
-            path.startsWith("/api/v2/stripe/") ||
-            path.startsWith("/swagger-ui") ||
-            path.startsWith("/api-docs") ||
-            path.startsWith("/v3/api-docs")) {
+        // Skip authentication for public paths
+        if (isPublicPath(path)) {
             filterChain.doFilter(request, response);
             return;
         }
 
         try {
-            String jwt = jwtService.getJwtFromCookie(request);
-            
-            // If no JWT token found, just continue the filter chain (security config will handle this)
-            if (jwt == null) {
-                filterChain.doFilter(request, response);
-                return;
-            }
-
-            // Try to validate the token
-            jwtService.validateToken(jwt);
-
-            String userEmail = jwtService.extractEmail();
-
-            UserDetails userDetails = customUserDetailsService.loadUserByUsername(userEmail);
-
-            UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
-                    userDetails, null, userDetails.getAuthorities());
-            authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-
-            SecurityContext context = SecurityContextHolder.createEmptyContext();
-            context.setAuthentication(authToken);
-            SecurityContextHolder.setContext(context);
-
+            authenticateRequest(request);
         } catch (JwtException e) {
             logger.error("JWT validation failed: {}", e.getMessage());
         } catch (Exception e) {
@@ -81,5 +64,31 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
 
         filterChain.doFilter(request, response);
+    }
+    
+    private boolean isPublicPath(String path) {
+        return PUBLIC_PATHS.stream().anyMatch(path::startsWith);
+    }
+    
+    private void authenticateRequest(HttpServletRequest request) {
+        String jwt = jwtService.getJwtFromCookie(request);
+            
+        // If no JWT token found, authentication will be handled by security config
+        if (jwt == null) {
+            return;
+        }
+
+        // Validate the token and set authentication
+        jwtService.validateToken(jwt);
+        String userEmail = jwtService.extractEmail();
+        UserDetails userDetails = customUserDetailsService.loadUserByUsername(userEmail);
+
+        UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
+                userDetails, null, userDetails.getAuthorities());
+        authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+
+        SecurityContext context = SecurityContextHolder.createEmptyContext();
+        context.setAuthentication(authToken);
+        SecurityContextHolder.setContext(context);
     }
 }

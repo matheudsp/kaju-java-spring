@@ -1,14 +1,11 @@
 package com.valedosol.kaju.feature.subscription.controller;
 
 import com.valedosol.kaju.config.UserContext;
-import com.valedosol.kaju.feature.auth.model.Account;
-import com.valedosol.kaju.feature.auth.repository.AccountRepository;
 import com.valedosol.kaju.feature.subscription.dto.PaymentSessionRequest;
 import com.valedosol.kaju.feature.subscription.dto.SubscriptionResponse;
-import com.valedosol.kaju.feature.subscription.dto.SubscriptionException;
-import com.valedosol.kaju.feature.subscription.service.SubscriptionService;
 import com.valedosol.kaju.feature.subscription.model.SubscriptionPlan;
 import com.valedosol.kaju.feature.subscription.service.SubscriptionPlanService;
+import com.valedosol.kaju.feature.subscription.service.SubscriptionService;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -18,12 +15,10 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.Map;
 
 /**
  * Controller to handle all subscription-related operations
@@ -75,15 +70,10 @@ public class SubscriptionController {
     })
     @PostMapping("/checkout")
     public ResponseEntity<?> createCheckoutSession(@RequestBody PaymentSessionRequest request) {
-        try {
-            var sessionResult = subscriptionService.createCheckoutSession(
-                    userContext.getCurrentUserEmail(), 
-                    request.getPlanId());
-            return ResponseEntity.ok(sessionResult);
-        } catch (SubscriptionException e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(Map.of("error", e.getMessage()));
-        }
+        var sessionResult = subscriptionService.createCheckoutSession(
+                userContext.getCurrentUserEmail(), 
+                request.getPlanId());
+        return ResponseEntity.ok(sessionResult);
     }
 
     @Operation(summary = "Assinar plano (teste)", description = "Assina um plano sem processamento de pagamento (apenas para testes)")
@@ -92,14 +82,9 @@ public class SubscriptionController {
             @ApiResponse(responseCode = "404", description = "Usuário ou plano não encontrado")
     })
     @PostMapping("/test/{planId}")
-    public ResponseEntity<?> subscribeForTesting(@PathVariable Long planId) {
-        try {
-            SubscriptionResponse subscription = subscriptionService.createTestSubscription(
-                    userContext.getCurrentUserEmail(), planId);
-            return ResponseEntity.ok(subscription);
-        } catch (SubscriptionException e) {
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                    .body(Map.of("error", e.getMessage()));
-        }
+    public ResponseEntity<SubscriptionResponse> subscribeForTesting(@PathVariable Long planId) {
+        SubscriptionResponse subscription = subscriptionService.createTestSubscription(
+                userContext.getCurrentUserEmail(), planId);
+        return ResponseEntity.ok(subscription);
     }
 }

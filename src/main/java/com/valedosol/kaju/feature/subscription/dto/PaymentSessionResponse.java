@@ -1,9 +1,11 @@
 package com.valedosol.kaju.feature.subscription.dto;
 
 import io.swagger.v3.oas.annotations.media.Schema;
+import lombok.Builder;
 import lombok.Data;
 
 @Data
+@Builder
 @Schema(description = "Response with payment session details")
 public class PaymentSessionResponse {
     @Schema(description = "URL da sessão de pagamento", example = "https://checkout.stripe.com/c/pay/...")
