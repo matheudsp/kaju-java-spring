@@ -27,7 +27,7 @@ public class EvolutionService {
     @Value("${evolution.api.url}")
     private String evolutionApiUrl;
 
-    @Value("${evolution.api.key}")
+    @Value("${evolution.api.key.global}")
     private String evolutionApiKey;
 
     @Value("${evolution.instance}")

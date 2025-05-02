@@ -27,12 +27,12 @@ public class DataInitializer {
 
             // Initialize default targets if they don't exist
             if (targetRepository.count() == 0) {
-                Target newsletterTarget = new Target(
-                        "Canal Newsletter do Kaju",
-                        "120363417811722085@newsletter",
-                        "newsletter",
-                        "Canal oficial de newsletter do Kaju para promoções e novidades"
-                );
+                // Target newsletterTarget = new Target(
+                //         "Canal Newsletter do Kaju",
+                //         "120363417811722085@newsletter",
+                //         "newsletter",
+                //         "Canal oficial de newsletter do Kaju para promoções e novidades"
+                // );
 
                 Target groupTarget = new Target(
                         "Grupo do Kaju",
@@ -41,7 +41,7 @@ public class DataInitializer {
                         "Grupo oficial do Kaju para discussões e promoções"
                 );
 
-                targetRepository.save(newsletterTarget);
+                // targetRepository.save(newsletterTarget);
                 targetRepository.save(groupTarget);
             }
         };
