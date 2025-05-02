@@ -18,9 +18,9 @@ import java.util.HashMap;
 import java.util.Map;
 
 @Service
-public class WhatsAppService {
+public class WhapiService {
 
-    private static final Logger logger = LoggerFactory.getLogger(WhatsAppService.class);
+    private static final Logger logger = LoggerFactory.getLogger(WhapiService.class);
 
     private final RestTemplate restTemplate;
 
@@ -33,7 +33,7 @@ public class WhatsAppService {
     @Value("${whapi.phone.id}")
     private String whapiPhoneId;
 
-    public WhatsAppService() {
+    public WhapiService() {
         this.restTemplate = new RestTemplate();
     }
 

@@ -22,12 +22,12 @@ public class PromotionService {
     private final PromotionRepository promotionRepository;
     private final PromotionTargetRepository promotionTargetRepository;
     private final AccountRepository accountRepository;
-    private final WhatsAppService whatsAppService;
+    private final EvolutionService whatsAppService;
 
     public PromotionService(PromotionRepository promotionRepository,
                             PromotionTargetRepository promotionTargetRepository,
                             AccountRepository accountRepository,
-                            WhatsAppService whatsAppService) {
+                            EvolutionService whatsAppService) {
         this.promotionRepository = promotionRepository;
         this.promotionTargetRepository = promotionTargetRepository;
         this.accountRepository = accountRepository;

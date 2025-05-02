@@ -6,7 +6,7 @@ import com.valedosol.kaju.feature.promotion.model.Promotion;
 import com.valedosol.kaju.feature.promotion.model.PromotionTarget;
 import com.valedosol.kaju.feature.promotion.repository.PromotionRepository;
 import com.valedosol.kaju.feature.promotion.repository.PromotionTargetRepository;
-import com.valedosol.kaju.feature.promotion.service.WhatsAppService;
+import com.valedosol.kaju.feature.promotion.service.EvolutionService;
 import com.valedosol.kaju.feature.target.model.Target;
 import com.valedosol.kaju.feature.target.repository.TargetRepository;
 
@@ -31,13 +31,13 @@ public class PromotionController {
     private final PromotionTargetRepository promotionTargetRepository;
     private final AccountRepository accountRepository;
     private final TargetRepository targetRepository;
-    private final WhatsAppService whatsAppService;
+    private final EvolutionService whatsAppService;
 
     public PromotionController(PromotionRepository promotionRepository,
                                PromotionTargetRepository promotionTargetRepository,
                                AccountRepository accountRepository,
                                TargetRepository targetRepository,
-                               WhatsAppService whatsAppService) {
+                               EvolutionService whatsAppService) {
         this.promotionRepository = promotionRepository;
         this.promotionTargetRepository = promotionTargetRepository;
         this.accountRepository = accountRepository;
