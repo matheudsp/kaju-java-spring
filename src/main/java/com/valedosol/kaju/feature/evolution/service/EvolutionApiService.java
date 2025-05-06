@@ -75,29 +75,29 @@ public class EvolutionApiService {
         try {
             // Call Evolution API to create instance
             String url = evolutionConfig.getApi().getUrl() + "/instance/create";
-            
+
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
             headers.set("apikey", evolutionConfig.getApi().getKey());
-            
+
             HttpEntity<CreateInstanceRequest> requestEntity = new HttpEntity<>(request, headers);
-            
+
             ResponseEntity<String> response = restTemplate.exchange(
                     url,
                     HttpMethod.POST,
                     requestEntity,
                     String.class);
-            
+
             // Parse the response
             JsonNode jsonNode = objectMapper.readTree(response.getBody());
-            
+
             InstanceResponse instanceResponse = new InstanceResponse();
             instanceResponse.setInstanceName(request.getInstanceName());
-            
+
             if (jsonNode.has("hash")) {
                 instanceResponse.setHash(jsonNode.get("hash").asText());
             }
-            
+
             if (jsonNode.has("qrcode") && jsonNode.get("qrcode").has("base64")) {
                 QRCodeData qrCodeData = new QRCodeData();
                 qrCodeData.setBase64(jsonNode.get("qrcode").get("base64").asText());
@@ -106,22 +106,21 @@ public class EvolutionApiService {
             } else {
                 instanceResponse.setStatus(EvolutionInstanceStatus.CONNECTED.name());
             }
-            
+
             // Save instance information to our database
             EvolutionInstance instance = EvolutionInstance.builder()
                     .instanceName(request.getInstanceName())
                     .apiToken(instanceResponse.getHash())
                     .phoneNumber(request.getNumber())
                     .owner(account)
-                    .status(instanceResponse.getQrcode() != null ? 
-                            EvolutionInstanceStatus.PENDING_CONNECTION : 
-                            EvolutionInstanceStatus.CONNECTED)
+                    .status(instanceResponse.getQrcode() != null ? EvolutionInstanceStatus.PENDING_CONNECTION
+                            : EvolutionInstanceStatus.CONNECTED)
                     .build();
-            
+
             evolutionInstanceRepository.save(instance);
-            
+
             return instanceResponse;
-            
+
         } catch (HttpClientErrorException e) {
             log.error("Error creating Evolution instance: {}", e.getResponseBodyAsString(), e);
             throw new BusinessException("Failed to create Evolution instance: " + e.getMessage());
@@ -149,46 +148,47 @@ public class EvolutionApiService {
      */
     public ConnectionStateResponse getConnectionState(String instanceName) {
         validateInstanceOwnership(instanceName);
-        
+
         try {
             String url = evolutionConfig.getApi().getUrl() + "/instance/connectionState/" + instanceName;
-            
+
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
-            
+
             HttpEntity<Void> requestEntity = new HttpEntity<>(headers);
-            
+
             ResponseEntity<String> response = restTemplate.exchange(
                     url,
                     HttpMethod.GET,
                     requestEntity,
                     String.class);
-            
+
             // Parse the response
             JsonNode jsonNode = objectMapper.readTree(response.getBody());
-            
+
             ConnectionStateResponse stateResponse = new ConnectionStateResponse();
-            
+
             if (jsonNode.has("state")) {
                 stateResponse.setState(jsonNode.get("state").asText());
             }
-            
+
             if (jsonNode.has("status")) {
                 stateResponse.setStatus(jsonNode.get("status").asText());
             }
-            
+
             // Update instance status in our database
             EvolutionInstance instance = getInstanceByName(instanceName);
-            EvolutionInstanceStatus newStatus = "CONNECTED".equals(stateResponse.getState()) ?
-                    EvolutionInstanceStatus.CONNECTED : EvolutionInstanceStatus.DISCONNECTED;
-            
+            EvolutionInstanceStatus newStatus = "CONNECTED".equals(stateResponse.getState())
+                    ? EvolutionInstanceStatus.CONNECTED
+                    : EvolutionInstanceStatus.DISCONNECTED;
+
             if (instance.getStatus() != newStatus) {
                 instance.setStatus(newStatus);
                 evolutionInstanceRepository.save(instance);
             }
-            
+
             return stateResponse;
-            
+
         } catch (HttpClientErrorException e) {
             log.error("Error fetching connection state: {}", e.getResponseBodyAsString(), e);
             throw new BusinessException("Failed to get connection state: " + e.getMessage());
@@ -203,42 +203,42 @@ public class EvolutionApiService {
      */
     public InstanceResponse connectInstance(String instanceName) {
         validateInstanceOwnership(instanceName);
-        
+
         try {
             String url = evolutionConfig.getApi().getUrl() + "/instance/connect/" + instanceName;
-            
+
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
-            
+
             HttpEntity<Void> requestEntity = new HttpEntity<>(headers);
-            
+
             ResponseEntity<String> response = restTemplate.exchange(
                     url,
                     HttpMethod.GET,
                     requestEntity,
                     String.class);
-            
+
             // Parse the response
             JsonNode jsonNode = objectMapper.readTree(response.getBody());
-            
+
             InstanceResponse instanceResponse = new InstanceResponse();
             instanceResponse.setInstanceName(instanceName);
-            
+
             // Update status based on response
             if (jsonNode.has("base64")) {
                 QRCodeData qrCodeData = new QRCodeData();
                 qrCodeData.setBase64(jsonNode.get("base64").asText());
                 instanceResponse.setQrcode(qrCodeData);
                 instanceResponse.setStatus(EvolutionInstanceStatus.PENDING_CONNECTION.name());
-                
+
                 // Update status in database
                 EvolutionInstance instance = getInstanceByName(instanceName);
                 instance.setStatus(EvolutionInstanceStatus.PENDING_CONNECTION);
                 evolutionInstanceRepository.save(instance);
             }
-            
+
             return instanceResponse;
-            
+
         } catch (HttpClientErrorException e) {
             log.error("Error connecting to instance: {}", e.getResponseBodyAsString(), e);
             throw new BusinessException("Failed to connect to instance: " + e.getMessage());
@@ -253,34 +253,34 @@ public class EvolutionApiService {
      */
     public InstanceResponse restartInstance(String instanceName) {
         validateInstanceOwnership(instanceName);
-        
+
         try {
             String url = evolutionConfig.getApi().getUrl() + "/instance/restart/" + instanceName;
-            
+
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
-            
+
             HttpEntity<Void> requestEntity = new HttpEntity<>(headers);
-            
+
             ResponseEntity<String> response = restTemplate.exchange(
                     url,
                     HttpMethod.POST,
                     requestEntity,
                     String.class);
-            
+
             // Parse the response
             JsonNode jsonNode = objectMapper.readTree(response.getBody());
-            
+
             InstanceResponse instanceResponse = new InstanceResponse();
             instanceResponse.setInstanceName(instanceName);
-            
+
             // Update status based on response
             if (jsonNode.has("base64")) {
                 QRCodeData qrCodeData = new QRCodeData();
                 qrCodeData.setBase64(jsonNode.get("base64").asText());
                 instanceResponse.setQrcode(qrCodeData);
                 instanceResponse.setStatus(EvolutionInstanceStatus.PENDING_CONNECTION.name());
-                
+
                 // Update status in database
                 EvolutionInstance instance = getInstanceByName(instanceName);
                 instance.setStatus(EvolutionInstanceStatus.PENDING_CONNECTION);
@@ -289,9 +289,9 @@ public class EvolutionApiService {
                 // Assume it's connected or reconnecting
                 instanceResponse.setStatus(EvolutionInstanceStatus.CONNECTED.name());
             }
-            
+
             return instanceResponse;
-            
+
         } catch (HttpClientErrorException e) {
             log.error("Error restarting instance: {}", e.getResponseBodyAsString(), e);
             throw new BusinessException("Failed to restart instance: " + e.getMessage());
@@ -307,26 +307,26 @@ public class EvolutionApiService {
     @Transactional
     public void logoutInstance(String instanceName) {
         validateInstanceOwnership(instanceName);
-        
+
         try {
             String url = evolutionConfig.getApi().getUrl() + "/instance/logout/" + instanceName;
-            
+
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
-            
+
             HttpEntity<Void> requestEntity = new HttpEntity<>(headers);
-            
+
             restTemplate.exchange(
                     url,
                     HttpMethod.DELETE,
                     requestEntity,
                     String.class);
-            
+
             // Update status in database
             EvolutionInstance instance = getInstanceByName(instanceName);
             instance.setStatus(EvolutionInstanceStatus.DISCONNECTED);
             evolutionInstanceRepository.save(instance);
-            
+
         } catch (HttpClientErrorException e) {
             log.error("Error logging out from instance: {}", e.getResponseBodyAsString(), e);
             throw new BusinessException("Failed to logout from instance: " + e.getMessage());
@@ -342,26 +342,26 @@ public class EvolutionApiService {
     @Transactional
     public void deleteInstance(String instanceName) {
         validateInstanceOwnership(instanceName);
-        
+
         try {
             String url = evolutionConfig.getApi().getUrl() + "/instance/delete/" + instanceName;
-            
+
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
             headers.set("apikey", evolutionConfig.getApi().getKey());
-            
+
             HttpEntity<Void> requestEntity = new HttpEntity<>(headers);
-            
+
             restTemplate.exchange(
                     url,
                     HttpMethod.DELETE,
                     requestEntity,
                     String.class);
-            
+
             // Delete from our database
             EvolutionInstance instance = getInstanceByName(instanceName);
             evolutionInstanceRepository.delete(instance);
-            
+
         } catch (HttpClientErrorException e) {
             log.error("Error deleting instance: {}", e.getResponseBodyAsString(), e);
             throw new BusinessException("Failed to delete instance: " + e.getMessage());
@@ -372,13 +372,28 @@ public class EvolutionApiService {
     }
 
     /**
+     * Get instance details by name
+     */
+    public EvolutionInstance getInstance(String instanceName) {
+        String currentUserEmail = userContext.getCurrentUserEmail();
+        if (currentUserEmail == null) {
+            throw new BusinessException("User must be authenticated to access instances");
+        }
+
+        Account account = accountService.getAccountByEmail(currentUserEmail);
+
+        return evolutionInstanceRepository.findByOwnerAndInstanceName(account, instanceName)
+                .orElseThrow(() -> new ResourceNotFoundException("Instance not found: " + instanceName));
+    }
+
+    /**
      * Helper method to get instance by name and validate ownership
      */
     private EvolutionInstance getInstanceByName(String instanceName) {
         return evolutionInstanceRepository.findByInstanceName(instanceName)
                 .orElseThrow(() -> new ResourceNotFoundException("Instance not found: " + instanceName));
     }
-    
+
     /**
      * Helper method to validate instance ownership
      */
@@ -389,7 +404,7 @@ public class EvolutionApiService {
         }
 
         Account account = accountService.getAccountByEmail(currentUserEmail);
-        
+
         evolutionInstanceRepository.findByOwnerAndInstanceName(account, instanceName)
                 .orElseThrow(() -> new BusinessException("You don't have access to this instance or it doesn't exist"));
     }
