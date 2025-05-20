@@ -11,16 +11,17 @@ import com.valedosol.kaju.feature.target.model.Target;
 import com.valedosol.kaju.feature.target.repository.TargetRepository;
 
 import java.util.List;
+import java.util.Optional;
 
 @Service
 public class TargetService {
 
     private final TargetRepository targetRepository;
-    
+
     public TargetService(TargetRepository targetRepository) {
         this.targetRepository = targetRepository;
     }
-    
+
     /**
      * Get all targets with caching - this list is likely small enough to cache
      */
@@ -28,7 +29,7 @@ public class TargetService {
     public List<Target> getAllTargets() {
         return targetRepository.findAll();
     }
-    
+
     /**
      * Get target by ID with caching
      */
@@ -37,7 +38,7 @@ public class TargetService {
         return targetRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Target not found with id: " + id));
     }
-    
+
     /**
      * Get targets by type with caching
      */
@@ -45,7 +46,7 @@ public class TargetService {
     public List<Target> getTargetsByType(String type) {
         return targetRepository.findByType(type);
     }
-    
+
     /**
      * Create a new target - update cache with the new target
      */
@@ -55,7 +56,7 @@ public class TargetService {
     public Target createTarget(Target target) {
         return targetRepository.save(target);
     }
-    
+
     /**
      * Update a target - update the cache with new values
      */
@@ -68,7 +69,7 @@ public class TargetService {
         }
         return targetRepository.save(target);
     }
-    
+
     /**
      * Delete a target - evict it from cache
      */
@@ -80,4 +81,9 @@ public class TargetService {
         }
         targetRepository.deleteById(id);
     }
+
+    public Optional<Target> findByWaId(String identifier) {
+        return targetRepository.findByIdentifier(identifier);
+    }
+
 }

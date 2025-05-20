@@ -47,6 +47,11 @@
 			<version>2.8.6</version>
 		</dependency>
 		<!--swagger-->
+		<!-- Spring WebFlux -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-webflux</artifactId>
+		</dependency>
 
 		<dependency>
 			<groupId>me.paulschwarz</groupId>
