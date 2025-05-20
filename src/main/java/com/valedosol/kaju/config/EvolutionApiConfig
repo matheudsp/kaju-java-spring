@@ -1,0 +1,9 @@
+@Configuration
+@ConfigurationProperties(prefix = "evolution.api")
+@Getter
+@Setter
+public class EvolutionApiConfig {
+    private String url;
+    private String key;
+    private Integer timeout = 30000;
+}

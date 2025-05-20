@@ -5,15 +5,10 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
 
 @Configuration
-@ConfigurationProperties(prefix = "evolution")
+@ConfigurationProperties(prefix = "evolution.api")
 @Data
-public class EvolutionConfig {
-    
-    private Api api = new Api();
-    
-    @Data
-    public static class Api {
-        private String url;
-        private String key;
-    }
+public class WhatsappProperties {
+    private String url;
+    private String key;
+    private String instance;
 }
